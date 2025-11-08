@@ -1,0 +1,31 @@
+# ========================
+# Archivo .gitignore para el Backend de PHP
+# ========================
+
+# 1. ¡¡CRÍTICO!! Ignorar la llave de servicio de Firebase
+# ¡NUNCA subas este archivo a Git!
+# Reemplaza esto con el nombre real de tu archivo .json:
+baseprueba-f8a4f-firebase-adminsdk-qj5d1.json
+
+# (Si la renombraste, usa ese nombre en su lugar)
+# firebase-credentials.json
+
+
+# 2. Ignorar la carpeta de Composer (¡MUY IMPORTANTE!)
+# Esto se regenera en cada máquina con "composer install"
+/vendor/
+
+
+# 3. Ignorar archivos de datos (tu CSV gigante)
+# Los datos de origen no deben estar en el repositorio.
+*.csv
+
+
+# 4. Ignorar archivos de configuración del editor (VS Code)
+# Esto es específico de tu máquina local.
+/.vscode/
+
+
+# 5. Ignorar archivos de log (si se crea alguno)
+*.log
+firebase-credentials.json
