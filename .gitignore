@@ -4,8 +4,7 @@
 
 # 1. ¡¡CRÍTICO!! Ignorar la llave de servicio de Firebase
 # ¡NUNCA subas este archivo a Git!
-# Reemplaza esto con el nombre real de tu archivo .json:
-baseprueba-f8a4f-firebase-adminsdk-qj5d1.json
+firebase-credentials.json
 
 # (Si la renombraste, usa ese nombre en su lugar)
 # firebase-credentials.json

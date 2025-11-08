@@ -1,0 +1,19 @@
+# (docker-compose.yml v1.1 - Seguro)
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:80"
+    volumes:
+      # 1. Sincroniza tu código (como antes)
+      - .:/var/www/html/
+      
+      # 2. Protege la carpeta 'vendor' (como antes)
+      - /var/www/html/vendor
+      
+      # 3. ¡NUEVO Y SEGURO! 
+      #    Inyecta tu llave local en el contenedor
+      #    (Asegúrate de que tu llave se llame 'firebase-credentials.json')
+      - ./firebase-credentials.json:/var/www/html/firebase-credentials.json

@@ -8,7 +8,6 @@ require 'vendor/autoload.php';
 $archivoCsv = 'CimehijoDB.csv'; 
 $coleccionDestino = 'productos'; 
 $delimitador = ','; 
-// ---------------------
 
 echo "Iniciando la importación (Firestore, v2.2-UTF8) de $archivoCsv...\n";
 
@@ -23,7 +22,6 @@ if (($gestor = fopen($archivoCsv, "r")) === FALSE) {
 }
 
 // 4. Leer la fila de Encabezados (Headers)
-// (NO USAMOS stream_filter_append aquí)
 $headers = fgetcsv($gestor, 0, $delimitador);
 if ($headers === FALSE) {
     die("Error: No se pudo leer la cabecera del CSV.\n");
@@ -46,7 +44,6 @@ $importados = 0;
 while (($datos = fgetcsv($gestor, 0, $delimitador)) !== FALSE) {
     $fila++;
     
-    // ++++++ ¡LA SOLUCIÓN ESTÁ AQUÍ! ++++++
     // Convertimos CADA DATO a UTF-8 antes de usarlos
     $datos_utf8 = [];
     foreach ($datos as $dato) {
@@ -77,7 +74,7 @@ while (($datos = fgetcsv($gestor, 0, $delimitador)) !== FALSE) {
     try {
         $collectionRef->document($sku)->set($producto);
         $importados++;
-        echo "."; // Imprimir un punto por cada éxito
+        echo ".";
 
     } catch (Exception $e) {
         // Si ALGO falla (SSL o lo que sea), el script se detendrá
@@ -89,7 +86,7 @@ while (($datos = fgetcsv($gestor, 0, $delimitador)) !== FALSE) {
         echo "-------------------------------------------\n";
         
         fclose($gestor);
-        die(); // Detener el script
+        die(); 
     }
 }
 
