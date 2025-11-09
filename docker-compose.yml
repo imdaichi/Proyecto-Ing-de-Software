@@ -1,19 +1,22 @@
-# (docker-compose.yml v1.1 - Seguro)
 version: '3.8'
 
 services:
   app:
+    # 1. Le dice a Docker que CONSTRUYA usando el Dockerfile (v3.0)
     build: .
+    
+    # 2. Conecta el puerto
     ports:
       - "8000:80"
+      
+    # 3. Volúmenes (El truco final)
     volumes:
-      # 1. Sincroniza tu código (como antes)
+      # a) Espejea tu código local para "live-edit"
       - .:/var/www/html/
       
-      # 2. Protege la carpeta 'vendor' (como antes)
+      # b) ¡LA CLAVE! "Protege" la carpeta 'vendor' que se creó 
+      #    en la imagen. Docker ignorará esta carpeta del "espejo".
       - /var/www/html/vendor
       
-      # 3. ¡NUEVO Y SEGURO! 
-      #    Inyecta tu llave local en el contenedor
-      #    (Asegúrate de que tu llave se llame 'firebase-credentials.json')
+      # c) Inyecta tu llave secreta (como antes)
       - ./firebase-credentials.json:/var/www/html/firebase-credentials.json
