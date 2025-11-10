@@ -2,21 +2,19 @@ version: '3.8'
 
 services:
   app:
-    # 1. Le dice a Docker que CONSTRUYA usando el Dockerfile (v3.0)
+    # 1. Le dice a Docker que CONSTRUYA (el paso de 4000s)
     build: .
     
-    # 2. Conecta el puerto
     ports:
       - "8000:80"
       
-    # 3. Volúmenes (El truco final)
+    # 2. ¡LA SECCIÓN CRÍTICA!
     volumes:
-      # a) Espejea tu código local para "live-edit"
+      # a) El "Espejo" para editar en vivo
       - .:/var/www/html/
       
-      # b) ¡LA CLAVE! "Protege" la carpeta 'vendor' que se creó 
-      #    en la imagen. Docker ignorará esta carpeta del "espejo".
+      # b) ¡LA LÍNEA QUE ARREGLA EL ERROR DE 'vendor/'!
       - /var/www/html/vendor
       
-      # c) Inyecta tu llave secreta (como antes)
+      # c) Inyecta la llave secreta local
       - ./firebase-credentials.json:/var/www/html/firebase-credentials.json
