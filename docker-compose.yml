@@ -1,20 +1,7 @@
-version: '3.8'
-
 services:
-  app:
-    # 1. Le dice a Docker que CONSTRUYA (el paso de 4000s)
-    build: .
-    
+  php-apache:
+    build: ./Backend # <--- CORREGIDO: Le dice dónde está el Dockerfile
     ports:
       - "8000:80"
-      
-    # 2. ¡LA SECCIÓN CRÍTICA!
     volumes:
-      # a) El "Espejo" para editar en vivo
-      - .:/var/www/html/
-      
-      # b) ¡LA LÍNEA QUE ARREGLA EL ERROR DE 'vendor/'!
-      - /var/www/html/vendor
-      
-      # c) Inyecta la llave secreta local
-      - ./firebase-credentials.json:/var/www/html/firebase-credentials.json
+      - ./Backend:/var/www/html # <--- CORREGIDO: Le dice qué carpeta montar
