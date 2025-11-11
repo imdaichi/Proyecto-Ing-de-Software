@@ -3,7 +3,7 @@ require __DIR__.'/../vendor/autoload.php';
 
 use Kreait\Firebase\Factory;
 
-$serviceAccount = __DIR__.'/../firebase-credentials.json'; 
+$serviceAccount = __DIR__ . '/firebase-credentials.json';
 
 $factory = (new Factory)
     ->withServiceAccount($serviceAccount);

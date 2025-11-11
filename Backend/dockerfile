@@ -1,9 +1,9 @@
-# Dockerfile V6.0 (El "Plan PHP 8.0")
+# Dockerfile V8.0 (La solución limpia)
 
-# 1. ¡LA CLAVE! Usamos PHP 8.0, la versión para la que se hizo tu composer.lock
+# 1. Usamos PHP 8.0
 FROM php:8.0-apache
 
-# 2. Instalamos las dependencias del sistema (las mismas que antes)
+# 2. Instalamos las dependencias del sistema
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -11,26 +11,32 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Instalamos Composer
+# 3. Activamos el módulo 'rewrite' de Apache (para que .htaccess funcione)
+RUN a2enmod rewrite
+
+# 4. ¡LA NUEVA SOLUCIÓN! Copiamos nuestra config de Apache personalizada
+#    (Reemplaza el 'sed' que estaba rompiendo todo)
+COPY apache-override.conf /etc/apache2/conf-available/apache-override.conf
+
+# 5. Y la activamos
+RUN a2enconf apache-override
+
+# 6. Instalamos Composer
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
-# 4. Instalamos la extensión gRPC (requerida por Firestore)
-#    (pecl la instalará para PHP 8.0)
+# 7. Instalamos gRPC
 RUN pecl install grpc
 RUN docker-php-ext-enable grpc
 
-# 5. Establecemos el directorio de trabajo
+# 8. Establecemos el directorio de trabajo
 WORKDIR /var/www/html
 
-# 6. Copiamos AMBOS archivos. ¡Ahora SÍ queremos usar el .lock!
+# 9. Copiamos e instalamos dependencias de Composer
 COPY composer.json composer.lock ./
-
-# 7. Ejecutamos 'install'. Esto leerá tu 'composer.lock' (que pide Firebase 6)
-#    y funcionará, porque estamos en un entorno PHP 8.0.
 RUN composer install --no-dev --optimize-autoloader 
 
-# 8. Copiamos el RESTO de nuestra aplicación
+# 10. Copiamos el resto de la app
 COPY . .
 
-# 9. Arreglamos los permisos (evita error 403)
+# 11. Arreglamos permisos
 RUN chown -R www-data:www-data /var/www/html
