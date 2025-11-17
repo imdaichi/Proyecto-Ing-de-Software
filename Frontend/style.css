@@ -110,6 +110,8 @@ body {
     gap: 15px;
     color: #212529;
     border-left: 1px solid #ddd; 
+    heigh: 100vh;
+    overflow-y: auto;
 }
 
 .panel-header {
@@ -307,17 +309,13 @@ body {
 
 #modal-form-editar {
     margin-top: 20px;
-    display: flex;
+    display: none;      
     flex-direction: column;
     gap: 10px; 
-}
-.form-editar-oculto {
-    display: none;
 }
 #modal-form-editar.visible {
     display: flex;
 }
-
 #modal-form-editar label {
     font-weight: bold;
     color: #555;
@@ -343,4 +341,140 @@ body {
 }
 #modal-guardar-cambios {
     font-size: 1.1rem;
+}
+/* Pega esto al final de tu style.css */
+
+.cantidad-input {
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 0 5px;
+    width: 40px; /* Ancho fijo */
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    
+    /* Oculta las flechas por defecto del navegador */
+    -moz-appearance: textfield;
+}
+
+.cantidad-input::-webkit-outer-spin-button,
+.cantidad-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.icono-btn-notificaciones {
+    position: relative; /* Para posicionar el contador */
+    background: none;
+    border: none;
+    font-size: 2.2rem; /* Tamaño del icono */
+    color: #29542e; /* Color verde de tu marca */
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 15px; /* Espacio debajo del botón */
+    align-self: flex-end; /* Para alinearlo a la derecha dentro de columna-acciones */
+    margin-right: 10px; /* Pequeño margen a la derecha */
+    transition: color 0.2s;
+}
+
+.icono-btn-notificaciones:hover {
+    color: #1a3a1d;
+}
+
+.contador-notificaciones {
+    position: absolute;
+    top: -5px; /* Ajusta para la posición vertical */
+    right: -5px; /* Ajusta para la posición horizontal */
+    background-color: #dc3545; /* Rojo de "peligro" */
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 50%;
+    padding: 3px 8px;
+    line-height: 1; /* Para que el texto esté centrado verticalmente */
+    min-width: 20px; /* Asegura un ancho mínimo para números de 1 dígito */
+    text-align: center;
+    display: none; /* Oculto por defecto, se mostrará con JS */
+}
+
+/* --- ESTILOS DEL PANEL FLOTANTE DE NOTIFICACIONES --- */
+.panel-notificaciones-flotante {
+    position: fixed; /* O fixed si quieres que no se mueva con el scroll */
+    top: 60px; /* Distancia desde la parte superior (ajusta según tu header) */
+    right: 20px; /* Distancia desde la derecha */
+    width: 350px; /* Ancho del panel */
+    height: 60vh; /* Altura del panel (ajusta según necesites) */
+    background-color: #f8f9fa; /* Fondo claro para que combine con tus estilos */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000; /* Asegura que esté por encima de otros elementos */
+    
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Para que los scrolls internos funcionen bien */
+
+    visibility: hidden; /* Oculto por defecto */
+    opacity: 0;
+    transform: translateY(-10px); /* Un pequeño efecto de entrada */
+    transition: all 0.3s ease-out;
+}
+
+.panel-notificaciones-flotante.visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.panel-notificaciones-flotante h3 {
+    color: #29542e; /* Color de tu marca */
+    margin: 0;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.panel-notificaciones-flotante ul {
+    list-style: none;
+    padding: 20px;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto; /* ¡Scroll interno para la lista! */
+}
+
+.panel-notificaciones-flotante .placeholder {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding-top: 10px;
+}
+
+/* Estilos de los ítems de notificación (estos son los mismos que antes, pero reubicados) */
+.notificacion-item {
+    background-color: #fff;  
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: #333;
+    line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.notificacion-item.error {
+    background-color: #fdeded; /* Fondo rojo claro */
+    border-color: #dc3545; /* Borde rojo (tu .accion-peligro) */
+    color: #58151c;
+}
+
+.notificacion-item.exito {
+    background-color: #eaf7eb; /* Fondo verde claro */
+    border-color: #29542e; /* Borde verde (tu marca) */
+    color: #142917;
+}
+
+.notificacion-item .hora {
+    font-size: 0.8em;
+    color: #777;
+    display: block;
+    margin-top: 5px;
 }
