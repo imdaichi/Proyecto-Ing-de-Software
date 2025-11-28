@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        /* Estilos específicos del Dashboard */
+        body { overflow: auto; } /* Permitir scroll */
+        .dash-layout { display: grid; grid-template-columns: 250px 1fr; height: 100vh; }
+        .sidebar { background: #2c3e50; color: white; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .sidebar button { padding: 15px; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 1rem; }
+        .sidebar button:hover { background: #34495e; }
+        .sidebar button.active { background: #3498db; font-weight: bold; }
+        .main { padding: 30px; background: #f4f6f9; overflow-y: auto; }
+        .seccion { display: none; }
+        .seccion.active { display: block; }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .row { display: flex; gap: 15px; margin-bottom: 10px; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="dash-layout">
+        <nav class="sidebar">
+            <h2>CIMEHIJO Admin</h2>
+            <button onclick="verSeccion('prod')" class="active">📦 Productos</button>
+            <button onclick="verSeccion('rep')">📊 Reportes</button>
+            <button onclick="window.location.href='../Ventas/'" style="margin-top:auto; background:#27ae60;">🛒 Ir a Vender</button>
+            <button id="btn-logout" style="background:#c0392b;">Cerrar Sesión</button>
+        </nav>
+        <main class="main">
+            <div id="sec-prod" class="seccion active">
+                <h1>Gestión de Productos</h1>
+                <div class="card">
+                    <div class="row">
+                        <input type="text" id="sku-buscar" placeholder="Ingresa SKU...">
+                        <button class="accion-btn" id="btn-buscar">Buscar</button>
+                    </div>
+                </div>
+                <div id="form-edit" class="card" style="display:none;">
+                    <h3>Editando: <span id="lbl-titulo" style="color:blue;">...</span></h3>
+                    <div class="row">
+                        <div><label>Precio</label><input type="number" id="in-precio"></div>
+                        <div><label>Stock</label><input type="number" id="in-stock"></div>
+                    </div>
+                    <div><label>Variantes</label><input type="text" id="in-var"></div>
+                    <br>
+                    <button class="accion-btn" id="btn-guardar" style="background:green; width:100%;">💾 Guardar Cambios</button>
+                </div>
+            </div>
+
+            <div id="sec-rep" class="seccion">
+                <h1>Reportes de Ventas</h1>
+                <div class="card">
+                    <div class="row">
+                        <div><label>Desde</label><input type="date" id="f-ini"></div>
+                        <div><label>Hasta</label><input type="date" id="f-fin"></div>
+                        <button class="accion-btn" id="btn-reporte" style="background:#8e44ad;">Generar</button>
+                    </div>
+                </div>
+                <div id="resumen" class="card" style="display:none;">
+                    <h2>Total Vendido: <span id="txt-monto" style="color:green;">$0</span></h2>
+                </div>
+                <div class="card">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead><tr style="border-bottom:2px solid #ddd; text-align:left;"><th>ID</th><th>Fecha</th><th>Usuario</th><th>Total</th></tr></thead>
+                        <tbody id="tabla-rep"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html>

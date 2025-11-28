@@ -1,4 +1,4 @@
-const LOGIN_API_URL = 'http://localhost:8000/api/login';
+const LOGIN_API_URL = 'http://localhost:8000/login';
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -32,18 +32,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 console.log('Login exitoso:', data);
-                
                 sessionStorage.setItem('usuarioLogueado', JSON.stringify(data));
-                
-                window.location.href = 'tpv.html';
-                
+                const rol = (data.rol || data.role || 'vendedor').toLowerCase().trim();
+                if (rol === 'admin' || rol === 'administrador') {
+                    window.location.href = 'Dashboard/';
+                } else {
+                    window.location.href = 'Ventas/';
+                }
             } else {
-                throw new Error(data.error || 'Error desconocido');
-            }
+                // Mostrar mensaje de error del servidor si existe, sino un mensaje genérico
+                const message = data && (data.message || data.error) ? (data.message || data.error) : 'Credenciales inválidas';
+                console.warn('Login fallido:', message);
+                errorMensaje.innerText = message;
+                errorMensaje.style.display = 'block';
 
+                loginBoton.disabled = false;
+                loginBoton.innerText = "Ingresar";
+            }
         } catch (error) {
             console.error('Error en el login:', error);
-            errorMensaje.innerText = error.message;
+            errorMensaje.innerText = error.message || 'Error de red';
             errorMensaje.style.display = 'block';
             
             loginBoton.disabled = false;

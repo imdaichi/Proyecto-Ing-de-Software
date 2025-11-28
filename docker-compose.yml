@@ -1,17 +1,12 @@
-# docker-compose.yml (Versión Final)
 
 services:
   php-apache:
-    # 1. Le decimos que CONSTRUYA la imagen (usando el Dockerfile de PHP 8.0)
     build: ./Backend
     
     ports:
       - "8000:80"
       
     volumes:
-      # 2. Reflejamos nuestra carpeta local "Backend"
       - ./Backend:/var/www/html
-      
-      # 3. ¡LA SOLUCIÓN CLAVE! Protegemos la carpeta "vendor" que se creó
-      #    durante el build (Paso 7 del Dockerfile)
+      - ./Frontend:/var/www/html/frontend
       - /var/www/html/vendor
