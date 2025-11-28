@@ -6,9 +6,6 @@
 # ¡NUNCA subas este archivo a Git!
 firebase-credentials.json
 
-# (Si la renombraste, usa ese nombre en su lugar)
-# firebase-credentials.json
-
 
 # 2. Ignorar la carpeta de Composer (¡MUY IMPORTANTE!)
 # Esto se regenera en cada máquina con "composer install"

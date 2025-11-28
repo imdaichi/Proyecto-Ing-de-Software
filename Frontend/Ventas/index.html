@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto de Venta</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <div class="pos-container">
+        <main class="columna-venta">
+            <header class="header-venta">
+                <h2>Venta Actual</h2>
+                <input type="text" id="escaner-sku" placeholder="Escanear SKU...">
+            </header>
+            <div id="lista-productos-escaneados" class="lista-items">
+                <p class="placeholder">Esperando escaneo...</p>
+            </div>
+            <footer class="footer-venta">
+                <div class="total">
+                    <span>TOTAL:</span>
+                    <span id="venta-total">$0</span>
+                </div>
+            </footer>
+        </main>
+
+        <aside class="columna-acciones">
+            <img src="../logo.jpeg" alt="Logo" class="logo-tpv">
+            
+            <div class="panel-header">
+                <div class="saludo-container">
+                    <h3 id="bienvenida-usuario">Hola...</h3>
+                    <span id="rol-usuario" class="rol-subtitulo">Vendedor</span>
+                </div>
+                <button id="btn-logout" class="boton-logout">Salir</button>
+            </div>
+
+            <button class="accion-btn" id="btn-cobrar">💰 Cobrar</button>
+            <button class="accion-btn" id="btn-buscar">✖️ Cantidad</button>
+            <button class="accion-btn" id="btn-producto">⬅️ Eliminar Último</button>
+            <button class="accion-btn accion-peligro" id="btn-cancelar">🗑️ Limpiar</button>
+        </aside>
+    </div>
+
+    <script src="ventas.js"></script>
+    <button id="btn-volver-dash" class="btn-flotante-admin" style="display:none;">
+        ⚙️ Dashboard
+    </button>
+
+    <script src="ventas.js"></script>
+</body>
+</html>
+</body>
+</html>
