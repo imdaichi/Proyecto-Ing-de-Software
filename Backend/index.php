@@ -49,8 +49,8 @@ $id_url  = $partes[1] ?? null; // Aquí se guarda el SKU o ID si viene en la URL
 switch ($entidad) {
     case 'productos':
         $archivo = file_exists(__DIR__ . '/Productos.php') 
-                   ? __DIR__ . '/Productos.php' 
-                   : __DIR__ . '/Controladores/Productos.php';
+                ? __DIR__ . '/Productos.php' 
+                : __DIR__ . '/Controladores/Productos.php';
         
         if (file_exists($archivo)) {
             require_once $archivo;
@@ -61,8 +61,8 @@ switch ($entidad) {
 
     case 'ventas':
         $archivo = file_exists(__DIR__ . '/Ventas.php') 
-                   ? __DIR__ . '/Ventas.php' 
-                   : __DIR__ . '/Controladores/Ventas.php';
+                ? __DIR__ . '/Ventas.php' 
+                : __DIR__ . '/Controladores/Ventas.php';
         
         if (file_exists($archivo)) {
             require_once $archivo;
@@ -73,9 +73,9 @@ switch ($entidad) {
 
     case 'usuarios':
         $archivo = file_exists(__DIR__ . '/Usuarios.php') 
-                   ? __DIR__ . '/Usuarios.php' 
-                   : __DIR__ . '/Controladores/Usuarios.php';
-                   
+                ? __DIR__ . '/Usuarios.php' 
+                : __DIR__ . '/Controladores/Usuarios.php';
+                
         if (file_exists($archivo)) {
             require_once $archivo;
         } else {
@@ -85,9 +85,9 @@ switch ($entidad) {
         
     case 'reportes':
         $archivo = file_exists(__DIR__ . '/Reportes.php') 
-                   ? __DIR__ . '/Reportes.php' 
-                   : __DIR__ . '/Controladores/Reportes.php';
-                   
+                ? __DIR__ . '/Reportes.php' 
+                : __DIR__ . '/Controladores/Reportes.php';
+                
         if (file_exists($archivo)) {
             require_once $archivo;
         } else {
@@ -95,17 +95,25 @@ switch ($entidad) {
         }
         break;
 
+    case 'proveedores': 
+            require __DIR__ . '/Proveedores.php';
+            break;
+
     case 'login':
         $archivo = file_exists(__DIR__ . '/Login.php') 
-                   ? __DIR__ . '/Login.php' 
-                   : __DIR__ . '/Controladores/Login.php';
-                   
+                ? __DIR__ . '/Login.php' 
+                : __DIR__ . '/Controladores/Login.php';
+                
         if (file_exists($archivo)) {
             require_once $archivo;
         } else {
             error_404('Archivo Login.php no encontrado');
         }
         break;
+
+    case 'movimientos':
+            require __DIR__ . '/Movimientos.php';
+            break;
 
     default:
         // Si entras a la raíz o ruta desconocida
