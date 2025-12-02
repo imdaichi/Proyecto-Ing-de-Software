@@ -10,8 +10,6 @@ services:
       - "8000:80"
     volumes:
       - ./Backend:/var/www/html
-      - ./Frontend:/var/www/html/frontend
-      - /var/www/html/vendor
     depends_on:
       - db
     environment:
