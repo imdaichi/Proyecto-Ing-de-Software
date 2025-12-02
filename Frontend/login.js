@@ -1,61 +1,70 @@
-const LOGIN_API_URL = 'http://localhost:8000/login';
+// ==========================================
+// LOGIN.JS - LÓGICA DE ACCESO CORREGIDA
+// ==========================================
 
-document.addEventListener('DOMContentLoaded', () => {
+// Asegúrate que este puerto coincida con tu backend (XAMPP suele ser 80, Docker 8000 u 8080)
+const API_URL = 'http://localhost:8000'; 
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
     
-    const loginForm = document.getElementById('login-form');
-    const errorMensaje = document.getElementById('error-mensaje');
-    const loginBoton = document.getElementById('login-boton');
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const msgError = document.getElementById('error-mensaje'); 
+    const btn = document.getElementById('login-boton');
 
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // Feedback visual de carga
+    const textoOriginal = btn.innerText;
+    btn.innerText = "Verificando...";
+    btn.disabled = true;
+    if(msgError) msgError.style.display = 'none';
 
-        loginBoton.disabled = true;
-        loginBoton.innerText = "Ingresando...";
-        errorMensaje.style.display = 'none';
+    try {
+        console.log("Enviando credenciales al servidor...");
 
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        const res = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
 
-        try {
-            const response = await fetch(LOGIN_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    password: password
-                })
-            });
+        const data = await res.json();
+        console.log("Respuesta del servidor:", data);
 
-            const data = await response.json();
+        if (res.ok) {
+            // 1. Guardar datos del usuario
+            sessionStorage.setItem('usuarioLogueado', JSON.stringify(data.usuario));
 
-            if (response.ok) {
-                console.log('Login exitoso:', data);
-                sessionStorage.setItem('usuarioLogueado', JSON.stringify(data));
-                const rol = (data.rol || data.role || 'vendedor').toLowerCase().trim();
-                if (rol === 'admin' || rol === 'administrador') {
-                    window.location.href = 'Dashboard/';
-                } else {
-                    window.location.href = 'Ventas/';
-                }
+            // 2. LÓGICA CRÍTICA DE ROL
+            // Obtenemos el rol, quitamos espacios y convertimos a minúscula
+            const rolCrudo = data.usuario.rol;
+            const rol = (rolCrudo || '').trim().toLowerCase();
+
+            console.log(`Rol detectado: "${rol}" (Original: "${rolCrudo}")`);
+
+            if (rol === 'admin') {
+                console.log("Redirigiendo a Dashboard...");
+                window.location.href = 'Dashboard/'; 
             } else {
-                // Mostrar mensaje de error del servidor si existe, sino un mensaje genérico
-                const message = data && (data.message || data.error) ? (data.message || data.error) : 'Credenciales inválidas';
-                console.warn('Login fallido:', message);
-                errorMensaje.innerText = message;
-                errorMensaje.style.display = 'block';
-
-                loginBoton.disabled = false;
-                loginBoton.innerText = "Ingresar";
+                console.log("Redirigiendo a Ventas...");
+                window.location.href = 'Ventas/';
             }
-        } catch (error) {
-            console.error('Error en el login:', error);
-            errorMensaje.innerText = error.message || 'Error de red';
-            errorMensaje.style.display = 'block';
-            
-            loginBoton.disabled = false;
-            loginBoton.innerText = "Ingresar";
+        } else {
+            if(msgError) {
+                msgError.innerText = data.error || "Credenciales incorrectas";
+                msgError.style.display = 'block';
+            } else {
+                alert(data.error || "Error de acceso");
+            }
         }
-    });
+    } catch (error) {
+        console.error("Error de conexión:", error);
+        if(msgError) {
+            msgError.innerText = "Error de conexión con el servidor (Backend)";
+            msgError.style.display = 'block';
+        }
+    } finally {
+        btn.innerText = textoOriginal;
+        btn.disabled = false;
+    }
 });
