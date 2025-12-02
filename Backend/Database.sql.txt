@@ -1,0 +1,174 @@
+-- ==========================================================
+-- BASE DE DATOS MAESTRA - CIMEHIJO DB (FINAL)
+-- ==========================================================
+
+-- 1. LIMPIEZA TOTAL (Empezar de cero)
+SET NAMES 'utf8mb4';
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS movimientos;
+DROP TABLE IF EXISTS ventas;
+DROP TABLE IF EXISTS productos;
+DROP TABLE IF EXISTS proveedores;
+DROP TABLE IF EXISTS usuarios;
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ==========================================================
+-- 2. CREACIÓN DE TABLAS (ESTRUCTURA DEFINITIVA)
+-- ==========================================================
+
+-- TABLA: USUARIOS
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100),
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255),
+    rol VARCHAR(20) DEFAULT 'vendedor',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- TABLA: PROVEEDORES
+CREATE TABLE proveedores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    contacto VARCHAR(100),
+    telefono VARCHAR(20),
+    email VARCHAR(100),
+    categoria VARCHAR(50)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- TABLA: PRODUCTOS (Adaptada a las 9 columnas de tu CSV)
+CREATE TABLE productos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(100) UNIQUE NOT NULL,       -- SKU Padre y Variante
+    titulo VARCHAR(255) NOT NULL,
+    variantes VARCHAR(255),
+    stock INT NOT NULL DEFAULT 0,
+    precio_venta INT NOT NULL,              -- Usamos precio_venta
+    descripcion TEXT,                       -- Para el detalle largo
+    estado VARCHAR(50) DEFAULT 'activo',
+    tipo_garantia VARCHAR(100),             -- Nueva columna
+    categoria VARCHAR(100)                  -- Nueva columna
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- TABLA: VENTAS (Items en JSON)
+CREATE TABLE ventas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    total INT NOT NULL,
+    metodo_pago VARCHAR(50),
+    email_usuario VARCHAR(100),
+    descuento_aplicado TINYINT(1) DEFAULT 0,
+    items JSON NOT NULL 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- TABLA: MOVIMIENTOS (Bitácora de Auditoría)
+CREATE TABLE movimientos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(100),
+    titulo VARCHAR(255),
+    tipo VARCHAR(50), -- entrada, salida, precio, edicion
+    detalle TEXT,     -- Aquí guardamos el reporte HTML (Stock: 5 -> 4)
+    usuario VARCHAR(100),
+    proveedor VARCHAR(100),
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ==========================================================
+-- 3. DATOS SEMILLA (Usuarios y Proveedores)
+-- ==========================================================
+
+INSERT INTO usuarios (nombre, email, password, rol) VALUES
+('Administrador', 'admin@test.com', '123456', 'admin'),
+('Vendedor', 'vendedor@test.com', '123456', 'vendedor');
+
+INSERT INTO proveedores (nombre, contacto, telefono, email, categoria) VALUES
+('Comercial CIM', 'Contacto Proveedor', '+56912345678', 'contacto@cim.cl', 'Ropa y Hogar'),
+('Distribuidora Juguetes', 'Pedro Juegos', '+56987654321', 'ventas@juguetes.cl', 'Juguetería'),
+('Importadora Textil', 'Maria Telas', '+56911223344', 'textil@import.cl', 'Textil');
+
+
+-- ==========================================================
+-- 4. PRODUCTOS INICIALES (Basados en tu CSV real)
+-- ==========================================================
+
+-- Pijama (Ejemplo real de tu CSV)
+INSERT INTO productos (sku, titulo, variantes, stock, precio_venta, descripcion, estado, tipo_garantia, categoria) VALUES
+('CIMPIL065TR-GOL__24166945', 'Pijama Hombre Algodon Trevira Largo', '-', 11, 24990, 'Pijama Hombre Trevira Largo Algodon. Comodidad y suavidad...', 'activo', 'Garantia del vendedor', 'Pijamas');
+
+-- Jenga (Ejemplo real de tu CSV)
+INSERT INTO productos (sku, titulo, variantes, stock, precio_venta, descripcion, estado, tipo_garantia, categoria) VALUES
+('CIMCDON07', 'Juego De Habilidad Jenga Version Mini', '-', 11, 6990, 'Juego de Madera. Bloques de madera que forman una torre.', 'activo', 'Garantia del vendedor', 'Bowls de cocina');
+
+-- Productos Genéricos para rellenar gráficos
+INSERT INTO productos (sku, titulo, variantes, stock, precio_venta, descripcion, estado, tipo_garantia, categoria) VALUES
+('GEN-POL-001', 'Polera Algodón Básica', 'M - Negra', 50, 5990, 'Polera 100% Algodón', 'activo', 'Garantía 3 meses', 'Ropa'),
+('GEN-TAZ-002', 'Tazón Personalizado', 'Blanco', 100, 3500, 'Tazón para sublimar', 'activo', 'Sin garantía', 'Hogar');
+
+
+-- ==========================================================
+-- 5. MOVIMIENTOS INICIALES (Carga de Inventario)
+-- ==========================================================
+INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, proveedor, fecha)
+SELECT sku, titulo, 'entrada', CONCAT('Carga Inicial DB<br>Stock: 0 ➝ ', stock), 'admin@test.com', 'Base de Datos', '2024-01-01 10:00:00'
+FROM productos;
+
+
+-- ==========================================================
+-- 6. GENERADOR DE VENTAS HISTÓRICAS (2024 - 2025)
+-- ==========================================================
+
+-- Ventas Verano 2024 (Enero-Marzo)
+INSERT INTO ventas (fecha, total, metodo_pago, email_usuario, items)
+SELECT 
+    DATE_ADD('2024-01-01 10:00:00', INTERVAL FLOOR(RAND() * 90) DAY),
+    precio_venta * 2,
+    'efectivo',
+    'vendedor@test.com',
+    JSON_ARRAY(JSON_OBJECT('sku', sku, 'titulo', titulo, 'cantidad', 2, 'precio', precio_venta))
+FROM productos ORDER BY RAND() LIMIT 15;
+
+-- Ventas Invierno 2024 (Pijamas y Ropa)
+INSERT INTO ventas (fecha, total, metodo_pago, email_usuario, items)
+SELECT 
+    DATE_ADD('2024-06-01 10:00:00', INTERVAL FLOOR(RAND() * 60) DAY),
+    precio_venta,
+    'tarjeta',
+    'admin@test.com',
+    JSON_ARRAY(JSON_OBJECT('sku', sku, 'titulo', titulo, 'cantidad', 1, 'precio', precio_venta))
+FROM productos WHERE categoria = 'Pijamas' OR categoria = 'Ropa' ORDER BY RAND() LIMIT 20;
+
+-- Ventas Navidad 2024
+INSERT INTO ventas (fecha, total, metodo_pago, email_usuario, items)
+SELECT 
+    DATE_ADD('2024-12-10 10:00:00', INTERVAL FLOOR(RAND() * 15) DAY),
+    precio_venta * 3,
+    'transferencia',
+    'admin@test.com',
+    JSON_ARRAY(JSON_OBJECT('sku', sku, 'titulo', titulo, 'cantidad', 3, 'precio', precio_venta))
+FROM productos ORDER BY precio_venta DESC LIMIT 10;
+
+-- Ventas Actuales 2025 (Para que el gráfico llegue al presente)
+INSERT INTO ventas (fecha, total, metodo_pago, email_usuario, items)
+SELECT 
+    DATE_ADD('2025-01-05 10:00:00', INTERVAL FLOOR(RAND() * 60) DAY),
+    precio_venta,
+    'efectivo',
+    'vendedor@test.com',
+    JSON_ARRAY(JSON_OBJECT('sku', sku, 'titulo', titulo, 'cantidad', 1, 'precio', precio_venta))
+FROM productos ORDER BY RAND() LIMIT 15;
+
+
+-- ==========================================================
+-- 7. SINCRONIZAR BITÁCORA DE SALIDAS
+-- ==========================================================
+INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha)
+SELECT 
+    JSON_UNQUOTE(JSON_EXTRACT(items, '$[0].sku')), 
+    JSON_UNQUOTE(JSON_EXTRACT(items, '$[0].titulo')), 
+    'salida',
+    CONCAT('Venta Histórica #', id),
+    email_usuario,
+    fecha
+FROM ventas;
