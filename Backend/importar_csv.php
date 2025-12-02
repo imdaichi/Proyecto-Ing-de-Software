@@ -1,100 +1,69 @@
 <?php
-// importar_csv.php (VERSIÓN 2.2 - Corrección de UTF-8)
+// Backend/ImportarCSV.php
+require_once __DIR__ . '/Config/db.php';
 
-require 'firebase.php';
-require 'vendor/autoload.php';
-
-// --- Configuración ---
-$archivoCsv = 'CimehijoDB.csv'; 
-$coleccionDestino = 'productos'; 
-$delimitador = ','; 
-
-echo "Iniciando la importación (Firestore, v2.2-UTF8) de $archivoCsv...\n";
-
-global $db;
-if (is_null($db)) {
-    die("Error: La variable \$db (Firestore) no está definida. Revisa firebase.php\n");
-}
-$collectionRef = $db->collection($coleccionDestino);
-
-if (($gestor = fopen($archivoCsv, "r")) === FALSE) {
-    die("Error: No se pudo abrir el archivo CSV: $archivoCsv.\n");
+// Descargar plantilla
+if (isset($_GET['action']) && $_GET['action'] === 'template') {
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="plantilla_productos.csv"');
+    $output = fopen('php://output', 'w');
+    // Nota: En el CSV el usuario puede seguir viendo "precio" o "precio_venta", tú decides el encabezado
+    fputcsv($output, ['sku', 'titulo', 'precio_venta', 'stock', 'variantes', 'estado']);
+    fputcsv($output, ['PROD-001', 'Ejemplo', 1500, 100, 'Rojo', 'activo']);
+    fclose($output);
+    exit;
 }
 
-// 4. Leer la fila de Encabezados (Headers)
-$headers = fgetcsv($gestor, 0, $delimitador);
-if ($headers === FALSE) {
-    die("Error: No se pudo leer la cabecera del CSV.\n");
-}
-
-// Limpiamos los headers
-$headers_limpios = [];
-foreach ($headers as $h) {
-    $bom = pack('H*','EFBBBF');
-    $h = preg_replace("/^$bom/", '', $h);
-    $headers_limpios[] = trim($h);
-}
-$num_columnas = count($headers_limpios);
-echo "Cabeceras detectadas ($num_columnas): " . implode(' | ', $headers_limpios) . "\n\n";
-
-// 5. Leer el resto del archivo (los productos)
-$fila = 1; 
-$importados = 0;
-
-while (($datos = fgetcsv($gestor, 0, $delimitador)) !== FALSE) {
-    $fila++;
-    
-    // Convertimos CADA DATO a UTF-8 antes de usarlos
-    $datos_utf8 = [];
-    foreach ($datos as $dato) {
-        $datos_utf8[] = mb_convert_encoding($dato, 'UTF-8', 'Windows-1252');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_FILES['archivo_csv']) || $_FILES['archivo_csv']['error'] !== UPLOAD_ERR_OK) {
+        http_response_code(400); echo json_encode(['error' => 'Error archivo']); exit;
     }
-    // +++++++++++++++++++++++++++++++++++++++
 
-    if (count($datos_utf8) != $num_columnas) {
-        echo "Advertencia: Saltando fila $fila. El número de columnas (".count($datos_utf8).") no coincide con la cabecera ($num_columnas).\n";
-        continue;
-    }
+    $csvFile = fopen($_FILES['archivo_csv']['tmp_name'], 'r');
+    if ($csvFile === false) { http_response_code(500); echo json_encode(['error' => 'No se lee archivo']); exit; }
+
+    fgetcsv($csvFile); // Saltar cabecera
+
+    $insertados = 0; $errores = 0;
 
     try {
-        // Usamos los datos $datos_utf8 (ya convertidos)
-        $producto = array_combine($headers_limpios, $datos_utf8);
-    } catch (Exception $e) {
-        echo "Error al combinar cabeceras en fila $fila: " . $e->getMessage() . "\n";
-        continue;
-    }
+        $pdo->beginTransaction();
 
-    $sku = trim($producto['SKU Padre y Variante']);
-    if (empty($sku)) {
-        echo "Advertencia: Saltando fila $fila. No hay SKU ('SKU Padre y Variante' está vacío).\n";
-        continue;
-    }
-
-    // --- ¡Subir a FIRESTORE! ---
-    try {
-        $collectionRef->document($sku)->set($producto);
-        $importados++;
-        echo ".";
-
-    } catch (Exception $e) {
-        // Si ALGO falla (SSL o lo que sea), el script se detendrá
-        echo "\n\n¡ERROR FATAL AL ESCRIBIR EN FIRESTORE!\n";
-        echo "===========================================\n";
-        echo "Falló al intentar subir el SKU: $sku\n";
-        echo "\n--- MENSAJE DE ERROR DE CONEXIÓN ---\n";
-        echo $e->getMessage() . "\n";
-        echo "-------------------------------------------\n";
+        // CAMBIO AQUÍ: Usamos precio_venta
+        $sql = "INSERT INTO productos (sku, titulo, precio_venta, stock, variantes, estado) 
+                VALUES (?, ?, ?, ?, ?, ?) 
+                ON DUPLICATE KEY UPDATE 
+                titulo = VALUES(titulo), 
+                precio_venta = VALUES(precio_venta), 
+                stock = VALUES(stock), 
+                variantes = VALUES(variantes), 
+                estado = VALUES(estado)";
         
-        fclose($gestor);
-        die(); 
+        $stmt = $pdo->prepare($sql);
+
+        while (($row = fgetcsv($csvFile, 1000, ",")) !== false) {
+            if (count($row) < 4) { $errores++; continue; }
+
+            $sku       = trim($row[0]);
+            $titulo    = trim($row[1]);
+            $precio    = (int)$row[2]; // Asumimos que es la columna 3 del CSV
+            $stock     = (int)$row[3];
+            $variantes = $row[4] ?? '';
+            $estado    = $row[5] ?? 'activo';
+
+            if (empty($sku)) { $errores++; continue; }
+
+            $stmt->execute([$sku, $titulo, $precio, $stock, $variantes, $estado]);
+            $insertados++;
+        }
+
+        $pdo->commit();
+        fclose($csvFile);
+        echo json_encode(['mensaje' => "Proceso OK", 'procesados' => $insertados, 'errores' => $errores]);
+
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500); echo json_encode(['error' => $e->getMessage()]);
     }
 }
-
-fclose($gestor);
-
-echo "\n\n--------------------------------------------------\n";
-echo "¡Importación completada!\n";
-echo "Total de filas leídas (incluyendo cabecera): $fila\n";
-echo "Productos importados (o actualizados): $importados\n";
-
 ?>

@@ -1,61 +1,100 @@
 <?php
-// ============================================
-// PROVEEDORES.PHP - Gestión Completa (CRUD)
-// ============================================
+// ==========================================================
+// BACKEND/PROVEEDORES.PHP (VERSIÓN MYSQL PDO)
+// ==========================================================
 
-if (!isset($db)) {
-    http_response_code(500); echo json_encode(['error' => 'Error de conexión']); exit;
+// 1. VERIFICAR CONEXIÓN
+// Este archivo se carga desde index.php, así que ya debe existir $pdo
+if (!isset($pdo)) {
+    http_response_code(500); 
+    echo json_encode(['error' => 'Error de conexión a la base de datos']); 
+    exit;
 }
 
-// 1. GET: Listar
+// ---------------------------------------------------------
+// MÉTODO GET: LISTAR TODOS LOS PROVEEDORES
+// ---------------------------------------------------------
 if ($metodo === 'GET') {
     try {
-        $docs = $db->collection('proveedores')->documents();
-        $lista = [];
-        foreach ($docs as $doc) {
-            if ($doc->exists()) {
-                $d = $doc->data(); $d['id'] = $doc->id(); $lista[] = $d;
-            }
-        }
-        echo json_encode($lista);
-    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }
+        // Consultamos la tabla 'proveedores'
+        $stmt = $pdo->query("SELECT * FROM proveedores ORDER BY id DESC");
+        $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Enviamos la lista al frontend
+        echo json_encode($proveedores);
+
+    } catch (Exception $e) {
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error al leer: ' . $e->getMessage()]);
+    }
 }
 
-// 2. POST: Crear o Actualizar
+// ---------------------------------------------------------
+// MÉTODO POST: CREAR O ACTUALIZAR
+// ---------------------------------------------------------
 if ($metodo === 'POST') {
-    $id_prov = $datos['id_prov'] ?? null;
-    $dataGuardar = [
-        'nombre' => $datos['nombre'] ?? 'Sin Nombre',
-        'contacto' => $datos['contacto'] ?? '',
-        'telefono' => $datos['telefono'] ?? '',
-        'email' => $datos['email'] ?? '',
-        'categoria' => $datos['categoria'] ?? 'General'
-    ];
+    // Recibimos los datos del JSON
+    $id_prov = $datos['id_prov'] ?? null; // Si viene ID, es una EDICIÓN
+    
+    $nombre    = $datos['nombre'] ?? null;
+    $contacto  = $datos['contacto'] ?? '';
+    $telefono  = $datos['telefono'] ?? '';
+    $email     = $datos['email'] ?? '';
+    $categoria = $datos['categoria'] ?? 'General';
 
-    try {
-        if ($id_prov) {
-            $db->collection('proveedores')->document($id_prov)->set($dataGuardar, ['merge' => true]);
-            echo json_encode(['mensaje' => 'Proveedor actualizado']);
-        } else {
-            $db->collection('proveedores')->add($dataGuardar);
-            echo json_encode(['mensaje' => 'Proveedor creado']);
-        }
-    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }
-}
-
-// 3. DELETE: Eliminar (NUEVO)
-if ($metodo === 'DELETE') {
-    $id = $_GET['id'] ?? null;
-
-    if (!$id) {
-        http_response_code(400); echo json_encode(['error' => 'Falta el ID']); exit;
+    // Validación básica
+    if (!$nombre) {
+        http_response_code(400); 
+        echo json_encode(['error' => 'El nombre de la empresa es obligatorio']); 
+        exit;
     }
 
     try {
-        $db->collection('proveedores')->document($id)->delete();
-        echo json_encode(['mensaje' => 'Proveedor eliminado']);
+        if ($id_prov) {
+            // --- ACTUALIZAR (UPDATE) ---
+            $sql = "UPDATE proveedores SET nombre=?, contacto=?, telefono=?, email=?, categoria=? WHERE id=?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$nombre, $contacto, $telefono, $email, $categoria, $id_prov]);
+            
+            echo json_encode(['mensaje' => 'Proveedor actualizado correctamente']);
+            
+        } else {
+            // --- CREAR (INSERT) ---
+            $sql = "INSERT INTO proveedores (nombre, contacto, telefono, email, categoria) VALUES (?, ?, ?, ?, ?)";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$nombre, $contacto, $telefono, $email, $categoria]);
+            
+            echo json_encode(['mensaje' => 'Proveedor creado exitosamente']);
+        }
+
     } catch (Exception $e) {
-        http_response_code(500); echo json_encode(['error' => $e->getMessage()]);
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error al guardar: ' . $e->getMessage()]);
+    }
+}
+
+// ---------------------------------------------------------
+// MÉTODO DELETE: ELIMINAR PROVEEDOR
+// ---------------------------------------------------------
+if ($metodo === 'DELETE') {
+    // El ID viene por URL (ej: /proveedores?id=5)
+    $id = $_GET['id'] ?? null;
+
+    if (!$id) {
+        http_response_code(400); 
+        echo json_encode(['error' => 'Falta el ID del proveedor']); 
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare("DELETE FROM proveedores WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        echo json_encode(['mensaje' => 'Proveedor eliminado correctamente']);
+
+    } catch (Exception $e) {
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error al eliminar: ' . $e->getMessage()]);
     }
 }
 ?>

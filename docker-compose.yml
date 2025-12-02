@@ -1,12 +1,35 @@
+version: '3.8'
 
 services:
   php-apache:
-    build: ./Backend
-    
+    build: 
+      context: ./Backend
+      dockerfile: ./dockerfile
+    container_name: cimehijo_app
     ports:
       - "8000:80"
-      
     volumes:
       - ./Backend:/var/www/html
       - ./Frontend:/var/www/html/frontend
       - /var/www/html/vendor
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=cimehijo_db
+      - DB_USER=root
+      - DB_PASS=root
+
+  db:
+    image: mysql:8.0
+    container_name: cimehijo_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cimehijo_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:

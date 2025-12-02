@@ -24,15 +24,14 @@ RUN a2enconf apache-override
 # 6. Instalamos Composer
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
-# 7. Instalamos gRPC
-RUN pecl install grpc
-RUN docker-php-ext-enable grpc
+# 7. Instalamos extensiones para MySQL
+RUN docker-php-ext-install mysqli pdo pdo_mysql
 
 # 8. Establecemos el directorio de trabajo
 WORKDIR /var/www/html
 
 # 9. Copiamos e instalamos dependencias de Composer
-COPY composer.json composer.lock ./
+COPY composer.json ./
 RUN composer install --no-dev --optimize-autoloader 
 
 # 10. Copiamos el resto de la app

@@ -1,5 +1,5 @@
 // ==========================================
-// DASHBOARD.JS - CORRECCIÓN NOMBRES PRODUCTOS
+// DASHBOARD.JS - VERSIÓN MAESTRA COMPLETA
 // ==========================================
 const API_URL = 'http://localhost:8000';
 const usuarioLogueado = JSON.parse(sessionStorage.getItem('usuarioLogueado'));
@@ -7,14 +7,31 @@ const usuarioLogueado = JSON.parse(sessionStorage.getItem('usuarioLogueado'));
 // --- 1. SEGURIDAD Y NAVEGACIÓN ---
 if (!usuarioLogueado) window.location.href = '../index.html';
 if ((usuarioLogueado.rol || usuarioLogueado.role || '').toLowerCase() !== 'admin') { 
-    alert("Acceso restringido a administradores."); window.location.href='../Ventas/'; 
+    alert("Acceso restringido."); window.location.href='../Ventas/'; 
 }
 
+// Navegación entre pestañas
 window.verSeccion = function(id) {
-    ['sec-prod','sec-rep','sec-users','sec-prov'].forEach(s => document.getElementById(s).classList.remove('active'));
-    ['nav-prod','nav-rep','nav-users','nav-prov'].forEach(n => document.getElementById(n).classList.remove('active'));
-    document.getElementById('sec-' + id).classList.add('active');
-    document.getElementById('nav-' + id).classList.add('active');
+    const tabs = ['home', 'prod', 'rep', 'users', 'prov'];
+    
+    tabs.forEach(t => {
+        const sec = document.getElementById('sec-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if(sec) sec.classList.remove('active');
+        if(nav) nav.classList.remove('active');
+    });
+
+    const secActiva = document.getElementById('sec-' + id);
+    const navActivo = document.getElementById('nav-' + id);
+    
+    if(secActiva) secActiva.classList.add('active');
+    if(navActivo) navActivo.classList.add('active');
+
+    // Cargas automáticas al entrar a la sección
+    if(id === 'home') cargarResumenDashboard();
+    if(id === 'prod') cargarMovimientos();
+    if(id === 'users') cargarUsuarios();
+    if(id === 'prov') cargarProveedores();
 };
 
 document.getElementById('btn-logout')?.addEventListener('click', ()=>{
@@ -28,14 +45,68 @@ window.cerrarModal = function(id) {
 
 
 // ==========================================
-// 2. LOGICA BITÁCORA DE MOVIMIENTOS
+// 3. LOGICA DASHBOARD INICIO (GRÁFICOS)
+// ==========================================
+let miGrafico = null; 
+
+async function cargarResumenDashboard() {
+    try {
+        const res = await fetch(`${API_URL}/reportes?tipo=dashboard`);
+        const data = await res.json();
+
+        // Llenar Tarjetas
+        document.getElementById('kpi-top-prod').innerText = data.top_producto || 'Sin ventas';
+        document.getElementById('kpi-valor-inv').innerText = "$" + (data.valor_inventario || 0).toLocaleString();
+        
+        const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        document.getElementById('kpi-mes-actual').innerText = meses[new Date().getMonth()];
+
+        // Dibujar Gráfico
+        const ctx = document.getElementById('graficoVentas').getContext('2d');
+        const etiquetas = Object.keys(data.ventas_mes); 
+        const valores = Object.values(data.ventas_mes); 
+
+        if (miGrafico) miGrafico.destroy();
+
+        miGrafico = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: etiquetas,
+                datasets: [{
+                    label: 'Ventas Totales ($)',
+                    data: valores,
+                    backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Tendencia de Ventas por Mes' }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    } catch (e) { console.error("Error dashboard:", e); }
+}
+
+// Carga Inicial
+cargarResumenDashboard();
+
+
+// ==========================================
+// 4. LOGICA BITÁCORA DE MOVIMIENTOS
 // ==========================================
 async function cargarMovimientos(skuFiltro = null) {
     const tbody = document.getElementById('tabla-mov-body');
     const infoDiv = document.getElementById('info-producto');
     if(!tbody) return;
     
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando bitácora...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
 
     try {
         if (skuFiltro) {
@@ -53,266 +124,170 @@ async function cargarMovimientos(skuFiltro = null) {
             if(infoDiv) infoDiv.style.display = 'none';
         }
 
-        let url = `${API_URL}/movimientos`;
-        if (skuFiltro) url += `?sku=${encodeURIComponent(skuFiltro)}`;
-
+        let url = `${API_URL}/movimientos` + (skuFiltro ? `?sku=${encodeURIComponent(skuFiltro)}` : '');
         const resMov = await fetch(url);
         const movimientos = await resMov.json();
 
         tbody.innerHTML = '';
-
-        if (movimientos.length > 0) {
-            movimientos.forEach(m => {
-                let tipoColor = '#95a5a6';
-                const tipo = (m.tipo || '').toLowerCase();
-                if(tipo.includes('entrada')) tipoColor = '#27ae60';
-                if(tipo.includes('salida')) tipoColor = '#c0392b';
-                if(tipo.includes('precio')) tipoColor = '#f39c12';
-
-                const fecha = m.fecha ? new Date(m.fecha).toLocaleString() : '-';
-                
-                let detalle = m.detalle || '---';
-                if (m.stock_anterior !== undefined && m.stock_nuevo !== undefined) {
-                    detalle = `Stock: <b>${m.stock_anterior}</b> ➝ <b>${m.stock_nuevo}</b>`;
-                    if (m.proveedor && tipo.includes('entrada')) {
-                        detalle += `<br><span style="color:#27ae60; font-size:0.8rem;">🚚 Prov: ${m.proveedor}</span>`;
-                    }
-                }
-
-                tbody.innerHTML += `
-                    <tr style="border-bottom:1px solid #eee;">
-                        <td style="padding:10px; font-size:0.85rem;">${fecha}</td>
-                        <td style="font-weight:bold; color:#2c3e50;">
-                            ${m.sku}<br>
-                            <span style="font-size:0.75rem; color:#7f8c8d; font-weight:normal;">${m.titulo || ''}</span>
-                        </td>
-                        <td><span style="background:${tipoColor}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem; text-transform:uppercase;">${tipo}</span></td>
-                        <td style="font-size:0.9rem;">${detalle}</td>
-                        <td style="font-size:0.85rem; color:#34495e;">👤 ${m.usuario || 'Sistema'}</td>
-                    </tr>
-                `;
-            });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No hay movimientos registrados.</td></tr>';
+        if (movimientos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay movimientos.</td></tr>';
+            return;
         }
-    } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar datos.</td></tr>';
-    }
+
+        movimientos.forEach(m => {
+            let tipoColor = '#95a5a6';
+            const tipo = (m.tipo || '').toLowerCase();
+            if(tipo.includes('entrada')) tipoColor = '#27ae60';
+            if(tipo.includes('salida')) tipoColor = '#c0392b';
+            if(tipo.includes('precio')) tipoColor = '#f39c12';
+            if(tipo.includes('edicion')) tipoColor = '#3498db';
+
+            const fecha = m.fecha ? new Date(m.fecha).toLocaleString() : '-';
+            let detalle = m.detalle || '---';
+            if (m.proveedor && tipo.includes('entrada')) {
+                detalle += `<br><span style="color:#27ae60; font-size:0.8rem;">🚚 Prov: ${m.proveedor}</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px; font-size:0.85rem;">${fecha}</td>
+                    <td><b>${m.sku}</b><br><small>${m.titulo}</small></td>
+                    <td><span style="background:${tipoColor}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${tipo.toUpperCase()}</span></td>
+                    <td style="font-size:0.9rem;">${detalle}</td>
+                    <td style="font-size:0.85rem;">${m.usuario || 'Sistema'}</td>
+                </tr>`;
+        });
+    } catch (e) { tbody.innerHTML = `<tr><td colspan="5" style="color:red">${e.message}</td></tr>`; }
 }
 
 document.getElementById('btn-buscar')?.addEventListener('click', () => {
     const sku = document.getElementById('sku-buscar').value.trim();
-    if(sku) cargarMovimientos(sku);
-    else alert("Ingresa un SKU para filtrar");
+    if(sku) cargarMovimientos(sku); else alert("Ingresa SKU");
 });
-
 document.getElementById('btn-ver-todos')?.addEventListener('click', () => {
-    document.getElementById('sku-buscar').value = '';
-    cargarMovimientos(null);
+    document.getElementById('sku-buscar').value = ''; cargarMovimientos(null);
 });
-
-// Carga inicial
-cargarMovimientos(null);
 
 
 // ==========================================
-// 3. LOGICA REPORTES VENTAS (TABLA DETALLADA)
+// 5. REPORTES VENTAS
 // ==========================================
 const btnReporte = document.getElementById('btn-reporte');
-const containerExcel = document.getElementById('container-excel');
-
 if (btnReporte) {
     btnReporte.addEventListener('click', async ()=>{
         const ini = document.getElementById('f-ini')?.value;
         const fin = document.getElementById('f-fin')?.value;
         if(!ini || !fin) return alert("Faltan fechas");
-
-        if(containerExcel) containerExcel.style.display = 'none';
+        document.getElementById('container-excel').style.display='none';
 
         try {
-            const res = await fetch(`${API_URL}/reportes/ventas?inicio=${ini}&fin=${fin}`);
+            const res = await fetch(`${API_URL}/reportes?inicio=${ini}&fin=${fin}`);
             const data = await res.json();
             
-            const resumen = document.getElementById('resumen');
-            if(resumen) {
-                resumen.style.display = 'block';
-                document.getElementById('txt-monto').innerText = "$" + (data.total_monto||0);
-            }
+            document.getElementById('resumen').style.display='block';
+            document.getElementById('txt-monto').innerText = "$" + (data.total_monto||0);
             
             const tbody = document.getElementById('tabla-rep');
-            if(tbody) {
-                tbody.innerHTML = '';
-                if (data.ventas && data.ventas.length > 0) {
+            tbody.innerHTML='';
+            
+            if (data.ventas && data.ventas.length > 0) {
+                data.ventas.forEach(v => {
+                    const items = Array.isArray(v.items) ? v.items : [];
+                    let lista = items.map(i=>{
+                        let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:null)||'Prod';
+                        return `• ${n} (x${i.cantidad})`;
+                    }).join('<br>');
+
+                    let pago = v.metodo_pago || '-';
                     
-                    data.ventas.forEach(v => {
-                        const fechaObj = new Date(v.fecha);
-                        const fechaStr = fechaObj.toLocaleDateString() + ' ' + fechaObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                        
-                        let pago = v.metodo_pago || 'Desconocido';
-                        pago = pago.charAt(0).toUpperCase() + pago.slice(1);
-
-                        // --- CORRECCIÓN AQUÍ: Buscamos i.titulo directamente ---
-                        const items = Array.isArray(v.items) ? v.items : [];
-                        let listaHTML = '';
-                        items.forEach(i => {
-                             // Intentamos obtener el título de varias formas posibles
-                             const nombre = i.titulo || i.Titulo || (i.producto ? i.producto.Titulo : null) || 'Prod. Sin Nombre';
-                             listaHTML += `<div style="font-size:0.85rem;">• ${nombre} (x${i.cantidad})</div>`;
-                        });
-
-                        tbody.innerHTML += `
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:10px; font-size:0.9rem;">${fechaStr}</td>
-                                <td style="font-size:0.8rem; color:#777;">${v.id_venta.substr(0,8)}...</td>
-                                <td>${v.email_usuario}</td>
-                                <td><span style="background:#eaf2f8; color:#2980b9; padding:2px 6px; border-radius:4px; font-size:0.85rem;">${pago}</span></td>
-                                <td style="color:#444;">${listaHTML}</td>
-                                <td style="text-align:right; font-weight:bold;">$${v.total}</td>
-                            </tr>`;
-                    });
-
-                    if(containerExcel) containerExcel.style.display = 'block';
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No hay ventas en este rango.</td></tr>';
-                }
-            }
+                    tbody.innerHTML += `
+                    <tr style="border-bottom:1px solid #eee">
+                        <td style="padding:10px">${new Date(v.fecha).toLocaleString()}</td>
+                        <td><small>${v.id_venta.substr(0,8)}</small></td>
+                        <td>${v.email_usuario}</td>
+                        <td>${pago}</td>
+                        <td>${lista}</td>
+                        <td style="text-align:right"><b>$${v.total}</b></td>
+                    </tr>`;
+                });
+                document.getElementById('container-excel').style.display='block';
+            } else { tbody.innerHTML='<tr><td colspan="6" align="center">Sin ventas</td></tr>'; }
         } catch(e) { console.error(e); }
     });
 }
 
-
-// ==========================================
-// LOGICA EXPORTAR A EXCEL (CORREGIDA)
-// ==========================================
 const btnExcel = document.getElementById('btn-exportar-excel');
-if (btnExcel) {
-    btnExcel.onclick = async function(e) {
+if(btnExcel) {
+    btnExcel.onclick = async (e) => {
         e.preventDefault();
+        const ini=document.getElementById('f-ini').value, fin=document.getElementById('f-fin').value;
+        if(!ini||!fin) return;
+        btnExcel.innerText="⏳..."; btnExcel.disabled=true;
         
-        const ini = document.getElementById('f-ini')?.value;
-        const fin = document.getElementById('f-fin')?.value;
-        if (!ini || !fin) return;
-
-        const textoOriginal = "📥 Descargar Reporte en Excel";
-        btnExcel.innerText = "⏳ Procesando...";
-        btnExcel.disabled = true;
-
         try {
-            const res = await fetch(`${API_URL}/reportes/ventas?inicio=${ini}&fin=${fin}`);
+            const res = await fetch(`${API_URL}/reportes?inicio=${ini}&fin=${fin}`);
             const data = await res.json();
-            
-            if (!data.ventas || data.ventas.length === 0) {
-                alert("No hay ventas para exportar.");
-                return;
-            }
+            if(!data.ventas?.length) { alert("Sin datos"); return; }
 
-            // 1. Formatear datos
-            const filasExcel = data.ventas.map(venta => {
-                const items = Array.isArray(venta.items) ? venta.items : [];
-                
-                // --- CORRECCIÓN AQUÍ TAMBIÉN ---
-                const detalle = items.map(i => {
-                    // Priorizamos 'i.titulo' que es lo que tienes en tu BD
-                    const titulo = i.titulo || i.Titulo || (i.producto ? i.producto.Titulo : null) || 'Prod. Sin Nombre';
-                    const cant = i.cantidad || 0;
-                    return `${titulo} (x${cant})`;
+            const rows = data.ventas.map(v => {
+                let items = Array.isArray(v.items) ? v.items : [];
+                let det = items.map(i => {
+                    let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:''); 
+                    return `${n} (x${i.cantidad})`;
                 }).join(', ');
-
                 return {
-                    "ID Venta": venta.id_venta || '-',
-                    "Fecha Completa": venta.fecha ? new Date(venta.fecha).toLocaleString() : '-',
-                    "Vendedor": venta.email_usuario || 'Desconocido',
-                    "Método Pago": venta.metodo_pago || 'No especificado',
-                    "Descuento Aplicado": venta.descuento_aplicado ? 'SÍ' : 'NO',
-                    "Productos": detalle,
-                    "Total ($)": parseInt(venta.total) || 0
+                    "ID": v.id_venta, "Fecha": v.fecha, "Vendedor": v.email_usuario,
+                    "Pago": v.metodo_pago, "Productos": det, "Total": v.total
                 };
             });
-
-            // 2. Crear Excel
-            const libro = XLSX.utils.book_new();
-            const hoja = XLSX.utils.json_to_sheet(filasExcel);
-            hoja['!cols'] = [
-                {wch: 25}, {wch: 22}, {wch: 25}, {wch: 15}, {wch: 10}, {wch: 50}, {wch: 12}
-            ];
-
-            XLSX.utils.book_append_sheet(libro, hoja, "Ventas_Detalladas");
-
-            // 3. Generar Blob
-            const wbout = XLSX.write(libro, { bookType: 'xlsx', type: 'array' });
+            
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{wch:20},{wch:20},{wch:20},{wch:10},{wch:40},{wch:10}];
+            XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+            
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([wbout], { type: "application/octet-stream" });
             const url = window.URL.createObjectURL(blob);
-            
-            // 4. Descarga Manual
-            const a = document.createElement("a");
-            document.body.appendChild(a);
-            a.href = url;
-            const hoy = new Date().toISOString().split('T')[0];
-            a.download = `Reporte_Completo_${hoy}.xlsx`;
-            
-            a.click();
+            const a = document.createElement("a"); 
+            document.body.appendChild(a); a.href=url; a.download=`Reporte_${ini}.xlsx`; a.click();
+            setTimeout(()=>{ document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 1000);
 
-            setTimeout(() => {
-                try {
-                    if (document.body.contains(a)) document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                } catch (err) {}
-            }, 1000);
-
-        } catch(e) { 
-            console.error("Error descarga:", e);
-            alert("Error al descargar");
-        }
-        finally { 
-            btnExcel.innerText = textoOriginal;
-            btnExcel.disabled = false;
-        }
+        } catch(e){ console.error(e); }
+        finally { btnExcel.innerText="📥 Descargar Excel"; btnExcel.disabled=false; }
     };
 }
 
 
 // ==========================================
-// 4. LOGICA USUARIOS
+// 6. USUARIOS
 // ==========================================
 async function cargarUsuarios() {
     const tbody = document.getElementById('tabla-usuarios-body');
     if(!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
     try {
         const res = await fetch(`${API_URL}/usuarios`);
-        if (!res.ok) throw new Error("Error al cargar");
-        const usuarios = await res.json();
-        
+        const u = await res.json();
         tbody.innerHTML = ''; 
 
-        usuarios.forEach(u => {
-            const rol = (u.rol||'vendedor').toLowerCase();
-            const colorRol = rol === 'admin' ? 'red' : 'green';
+        u.forEach(x => {
+            let rol = (x.rol||'vendedor').toLowerCase();
+            let color = rol==='admin'?'red':'green';
+            let btnEd = `<button class="btn-editar-tabla" onclick="abrirModalUsuario('${x.id_db}','${x.email}','${x.nombre||''}','${rol}')">✏️</button>`;
+            let btnDel = `<button class="btn-editar-tabla" style="background:#c0392b;margin-left:5px" onclick="eliminarUsuario('${x.id_db}','${x.email}')">🗑️</button>`;
             
-            const btnEdit = `<button class="btn-editar-tabla" onclick="abrirModalUsuario('${u.id_db}', '${u.email}', '${u.nombre||''}', '${rol}')" title="Editar">✏️</button>`;
-            const btnDel = `<button class="btn-editar-tabla" style="background:#c0392b; margin-left:5px;" onclick="eliminarUsuario('${u.id_db}', '${u.email}')" title="Eliminar">🗑️</button>`;
-            
-            tbody.innerHTML += `
-                <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px;"><strong>${u.nombre||'Sin Nombre'}</strong></td>
-                    <td>${u.email}</td>
-                    <td><span style="background:${colorRol}; color:white; padding:3px 8px; border-radius:4px; font-size:0.8rem;">${rol.toUpperCase()}</span></td>
-                    <td style="text-align:right;">${btnEdit} ${rol === 'admin' ? '' : btnDel}</td>
-                </tr>`;
+            tbody.innerHTML+=`<tr style="border-bottom:1px solid #eee"><td style="padding:10px">${x.nombre||'-'}</td><td>${x.email}</td><td><span style="background:${color};color:white;padding:3px;border-radius:4px">${rol}</span></td><td align="right">${btnEd} ${btnDel}</td></tr>`;
         });
-    } catch (e) { tbody.innerHTML = `<tr><td colspan="4" style="color:red">Error: ${e.message}</td></tr>`; }
+    } catch(e){}
 }
 
 window.abrirModalUsuario = function(id, email, nombre, rol) {
-    const modal = document.getElementById('modal-editar-usuario');
-    if(modal) {
-        document.getElementById('edit-user-id').value = id;
-        document.getElementById('edit-user-email').value = email;
-        document.getElementById('edit-user-nombre').value = nombre;
-        document.getElementById('edit-user-rol').value = rol;
-        modal.style.display = 'flex';
-    }
+    document.getElementById('edit-user-id').value = id;
+    document.getElementById('edit-user-email').value = email;
+    document.getElementById('edit-user-nombre').value = nombre;
+    document.getElementById('edit-user-rol').value = rol;
+    document.getElementById('modal-editar-usuario').style.display = 'flex';
 };
 
 document.getElementById('btn-guardar-user')?.addEventListener('click', async () => {
@@ -323,80 +298,63 @@ document.getElementById('btn-guardar-user')?.addEventListener('click', async () 
     };
     try {
         await fetch(`${API_URL}/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-        alert("Usuario actualizado");
-        cerrarModal('modal-editar-usuario');
-        cargarUsuarios();
-    } catch(e) { alert("Error al guardar"); }
+        alert("Guardado"); cerrarModal('modal-editar-usuario'); cargarUsuarios();
+    } catch(e) { alert("Error"); }
 });
 
+window.eliminarUsuario = async function(id, email) {
+    if(!confirm(`¿Eliminar a ${email}?`)) return;
+    await fetch(`${API_URL}/usuarios?id=${id}`, { method:'DELETE' });
+    cargarUsuarios();
+};
 document.getElementById('nav-users')?.addEventListener('click', cargarUsuarios);
 document.getElementById('btn-cargar-usuarios')?.addEventListener('click', cargarUsuarios);
 
-window.eliminarUsuario = async function(id, email) {
-    if(!confirm(`¿Estás seguro de ELIMINAR al usuario ${email}?\nEsta acción no se puede deshacer.`)) return;
-    try {
-        const res = await fetch(`${API_URL}/usuarios?id=${id}`, { method: 'DELETE' });
-        if(res.ok) { alert("✅ Usuario eliminado."); cargarUsuarios(); } 
-        else { alert("Error al eliminar"); }
-    } catch(e) { alert("Error de conexión"); }
-};
-
 
 // ==========================================
-// 5. LOGICA PROVEEDORES
+// 7. PROVEEDORES
 // ==========================================
 async function cargarProveedores() {
     const tbody = document.getElementById('tabla-prov-body');
     if(!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
     try {
         const res = await fetch(`${API_URL}/proveedores`);
-        if (!res.ok) throw new Error("Error");
-        const provs = await res.json();
-        tbody.innerHTML = '';
-        
-        if(provs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay proveedores registrados.</td></tr>';
-            return;
-        }
+        const p = await res.json();
+        tbody.innerHTML = ''; 
 
-        provs.forEach(p => {
-            const btnEdit = `<button class="btn-editar-tabla" onclick="abrirModalProv('${p.id}', '${p.nombre||''}', '${p.contacto||''}', '${p.telefono||''}', '${p.email||''}', '${p.categoria||''}')" title="Editar">✏️</button>`;
-            const btnDel = `<button class="btn-editar-tabla" style="background:#c0392b; margin-left:5px;" onclick="eliminarProveedor('${p.id}', '${p.nombre||''}')" title="Eliminar">🗑️</button>`;
+        if(p.length===0) { tbody.innerHTML='<tr><td colspan="5">Sin datos</td></tr>'; return; }
+
+        p.forEach(x => {
+            let btnEd = `<button class="btn-editar-tabla" onclick="abrirModalProv('${x.id}','${x.nombre}','${x.contacto}','${x.telefono}','${x.email}','${x.categoria}')">✏️</button>`;
+            let btnDel = `<button class="btn-editar-tabla" style="background:#c0392b;margin-left:5px" onclick="eliminarProveedor('${x.id}','${x.nombre}')">🗑️</button>`;
 
             tbody.innerHTML += `
-                <tr style="background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05); border-radius:8px;">
-                    <td style="padding:15px;"><strong>${p.nombre||'Sin Nombre'}</strong></td>
-                    <td style="padding:15px;">${p.contacto||'-'}</td>
-                    <td style="padding:15px;"><div>📞 ${p.telefono}</div><div style="color:blue;font-size:0.8rem;">✉️ ${p.email}</div></td>
-                    <td style="padding:15px;"><span style="background:#ecf0f1; padding:5px; border-radius:10px; font-size:0.8rem;">${p.categoria||'Gral'}</span></td>
-                    <td style="padding:15px; text-align:right;">${btnEdit} ${btnDel}</td>
-                </tr>`;
+            <tr style="background:white;box-shadow:0 2px 5px rgba(0,0,0,0.05);border-radius:8px">
+                <td style="padding:15px"><b>${x.nombre}</b></td>
+                <td>${x.contacto||'-'}</td>
+                <td>📞 ${x.telefono}<br>✉️ ${x.email}</td>
+                <td>${x.categoria}</td>
+                <td align="right">${btnEd} ${btnDel}</td>
+            </tr>`;
         });
-    } catch (e) { tbody.innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`; }
+    } catch(e){}
 }
 
 window.abrirModalProv = function(id, nombre, contacto, tel, email, cat) {
-    const modal = document.getElementById('modal-editar-prov');
-    if(modal) {
-        document.getElementById('edit-prov-id').value = id;
-        document.getElementById('edit-prov-nombre').value = nombre;
-        document.getElementById('edit-prov-contacto').value = contacto;
-        document.getElementById('edit-prov-tel').value = tel;
-        document.getElementById('edit-prov-email').value = email;
-        document.getElementById('edit-prov-cat').value = cat;
-        modal.style.display = 'flex';
-    }
+    document.getElementById('edit-prov-id').value = id;
+    document.getElementById('edit-prov-nombre').value = nombre;
+    document.getElementById('edit-prov-contacto').value = contacto;
+    document.getElementById('edit-prov-tel').value = tel;
+    document.getElementById('edit-prov-email').value = email;
+    document.getElementById('edit-prov-cat').value = cat;
+    document.getElementById('modal-editar-prov').style.display = 'flex';
 };
 
 window.eliminarProveedor = async function(id, nombre) {
-    if(!confirm(`⚠️ ¿Eliminar al proveedor "${nombre}"?\nEsta acción es permanente.`)) return;
-    try {
-        const res = await fetch(`${API_URL}/proveedores?id=${id}`, { method: 'DELETE' });
-        if(res.ok) { alert("✅ Eliminado correctamente."); cargarProveedores(); }
-        else { alert("Error al eliminar."); }
-    } catch(e) { alert("Error de conexión"); }
+    if(!confirm(`¿Eliminar proveedor ${nombre}?`)) return;
+    await fetch(`${API_URL}/proveedores?id=${id}`, { method:'DELETE' });
+    cargarProveedores();
 };
 
 document.getElementById('btn-guardar-prov')?.addEventListener('click', async () => {
@@ -410,40 +368,75 @@ document.getElementById('btn-guardar-prov')?.addEventListener('click', async () 
     };
     try {
         await fetch(`${API_URL}/proveedores`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-        alert("Proveedor actualizado");
-        cerrarModal('modal-editar-prov');
-        cargarProveedores();
-    } catch(e) { alert("Error al guardar"); }
+        alert("Guardado"); cerrarModal('modal-editar-prov'); cargarProveedores();
+    } catch(e) { alert("Error"); }
 });
 
 document.getElementById('btn-nuevo-prov')?.addEventListener('click', () => {
     document.getElementById('new-prov-nombre').value = '';
-    document.getElementById('new-prov-contacto').value = '';
-    document.getElementById('new-prov-tel').value = '';
-    document.getElementById('new-prov-email').value = '';
-    document.getElementById('new-prov-cat').value = '';
     document.getElementById('modal-crear-prov').style.display = 'flex';
 });
 
 document.getElementById('btn-guardar-nuevo-prov')?.addEventListener('click', async () => {
-    const nombre = document.getElementById('new-prov-nombre').value.trim();
-    if(!nombre) return alert("El nombre es obligatorio");
-
     const data = {
-        nombre: nombre,
+        nombre: document.getElementById('new-prov-nombre').value,
         contacto: document.getElementById('new-prov-contacto').value,
         telefono: document.getElementById('new-prov-tel').value,
         email: document.getElementById('new-prov-email').value,
         categoria: document.getElementById('new-prov-cat').value
     };
-
+    if(!data.nombre) return alert("Nombre obligatorio");
     try {
-        const res = await fetch(`${API_URL}/proveedores`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+        await fetch(`${API_URL}/proveedores`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+        alert("Creado"); cerrarModal('modal-crear-prov'); cargarProveedores();
+    } catch(e) { alert("Error"); }
+});
+
+// ==========================================
+// LOGICA IMPORTAR CSV
+// ==========================================
+
+// 1. Abrir Modal
+document.getElementById('btn-abrir-importar')?.addEventListener('click', () => {
+    document.getElementById('modal-importar').style.display = 'flex';
+    document.getElementById('input-csv').value = ''; // Limpiar input
+    document.getElementById('msg-importar').innerText = '';
+});
+
+// 2. Subir Archivo
+document.getElementById('btn-subir-csv')?.addEventListener('click', async () => {
+    const input = document.getElementById('input-csv');
+    const msg = document.getElementById('msg-importar');
+    
+    if (input.files.length === 0) return alert("Selecciona un archivo primero");
+    
+    const archivo = input.files[0];
+    const formData = new FormData();
+    formData.append('archivo_csv', archivo); // El nombre 'archivo_csv' debe coincidir con PHP
+
+    msg.innerText = "⏳ Subiendo y procesando...";
+    msg.style.color = "blue";
+    
+    try {
+        const res = await fetch(`${API_URL}/importar`, {
+            method: 'POST',
+            body: formData // No ponemos Content-Type header, fetch lo pone solo con el boundary
         });
-        if(res.ok) { alert("✅ Proveedor creado"); cerrarModal('modal-crear-prov'); cargarProveedores(); }
-        else { alert("Error al crear"); }
-    } catch(e) { alert("Error de conexión"); }
+
+        const data = await res.json();
+
+        if (res.ok) {
+            msg.innerText = `✅ Éxito: ${data.procesados} productos procesados. (${data.errores} errores)`;
+            msg.style.color = "green";
+            // Recargar tabla de movimientos o productos si tienes una
+            if(typeof cargarMovimientos === 'function') cargarMovimientos(); 
+        } else {
+            throw new Error(data.error || "Error desconocido");
+        }
+    } catch (e) {
+        msg.innerText = "❌ Error: " + e.message;
+        msg.style.color = "red";
+    }
 });
 
 document.getElementById('nav-prov')?.addEventListener('click', cargarProveedores);

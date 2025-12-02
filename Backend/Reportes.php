@@ -1,71 +1,82 @@
 <?php
-// ============================================
-// REPORTES.PHP - Reportes de Ventas Inteligentes
-// ============================================
+// Backend/Reportes.php
+require_once __DIR__ . '/Config/db.php';
 
-if (!isset($db)) {
-    http_response_code(500); echo json_encode(['error' => 'Error de conexión']); exit;
-}
+// Parche compatibilidad
+if (!isset($pdo) && isset($db)) { $pdo = $db; }
+if (!isset($pdo)) { http_response_code(500); echo json_encode(['error' => 'Error BD']); exit; }
 
 if ($metodo === 'GET') {
-    // 1. Obtener fechas de la URL
+    $tipo = $_GET['tipo'] ?? 'normal';
+
+    // A. DASHBOARD
+    if ($tipo === 'dashboard') {
+        try {
+            // 1. Valor Inventario (Usando precio_venta)
+            $sqlInv = "SELECT SUM(precio_venta * stock) as total FROM productos WHERE estado = 'activo'";
+            $resInv = $pdo->query($sqlInv)->fetch(PDO::FETCH_ASSOC);
+            $valorInventario = (int)($resInv['total'] ?? 0);
+
+            // 2. Ventas y Top Producto
+            $sqlVentas = "SELECT fecha, total, items FROM ventas";
+            $todasVentas = $pdo->query($sqlVentas)->fetchAll(PDO::FETCH_ASSOC);
+
+            $ventasPorMes = [];
+            $conteoProductos = [];
+
+            foreach ($todasVentas as $v) {
+                $mes = substr($v['fecha'], 0, 7); 
+                if (!isset($ventasPorMes[$mes])) $ventasPorMes[$mes] = 0;
+                $ventasPorMes[$mes] += (int)$v['total'];
+
+                $items = json_decode($v['items'], true);
+                if (is_array($items)) {
+                    foreach ($items as $item) {
+                        $nombre = $item['titulo'] ?? $item['Titulo'] ?? ($item['producto']['Titulo'] ?? 'Desconocido');
+                        $cant = (int)($item['cantidad'] ?? 1);
+                        if (!isset($conteoProductos[$nombre])) $conteoProductos[$nombre] = 0;
+                        $conteoProductos[$nombre] += $cant;
+                    }
+                }
+            }
+
+            $topProducto = 'Sin datos'; $maxVentas = 0;
+            foreach ($conteoProductos as $prod => $cantidad) {
+                if ($cantidad > $maxVentas) { $maxVentas = $cantidad; $topProducto = $prod; }
+            }
+            ksort($ventasPorMes);
+
+            echo json_encode([
+                'valor_inventario' => $valorInventario,
+                'top_producto' => $topProducto . " ($maxVentas)",
+                'ventas_mes' => $ventasPorMes
+            ]);
+
+        } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }
+        exit;
+    }
+
+    // B. REPORTE NORMAL
     $inicio = $_GET['inicio'] ?? null;
     $fin = $_GET['fin'] ?? null;
 
-    if (!$inicio || !$fin) {
-        http_response_code(400); echo json_encode(['error' => 'Faltan fechas']); exit;
-    }
-
-    try {
-        // TRUCO IMPORTANTE: 
-        // Agregamos las horas para cubrir el día completo.
-        // Ejemplo: Si buscas el día 10, buscas desde el 10 a las 00:00 hasta el 10 a las 23:59
-        $fechaInicio = $inicio . " 00:00:00";
-        $fechaFin = $fin . " 23:59:59";
-
-        $ventasRef = $db->collection('ventas');
-        
-        // Hacemos la consulta filtrando por fecha (formato String ISO)
-        $query = $ventasRef->where('fecha', '>=', $fechaInicio)
-                        ->where('fecha', '<=', $fechaFin);
-        
-        $docs = $query->documents();
-        
-        $ventas = [];
-        $totalGeneral = 0;
-        
-        foreach ($docs as $doc) {
-            if ($doc->exists()) {
-                $v = $doc->data();
-                $v['id_venta'] = $doc->id();
-                
-                // Asegurar que los items sean un array
-                if (!isset($v['items']) || !is_array($v['items'])) {
-                    $v['items'] = [];
-                }
-
-                // Sumar al total general
-                $totalGeneral += (int)($v['total'] ?? 0);
-                
-                $ventas[] = $v;
+    if ($inicio && $fin) {
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM ventas WHERE fecha BETWEEN ? AND ? ORDER BY fecha DESC");
+            $stmt->execute(["$inicio 00:00:00", "$fin 23:59:59"]);
+            $raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $final = []; $total = 0;
+            foreach ($raw as $r) {
+                $r['items'] = json_decode($r['items'], true);
+                $r['id_venta'] = (string)$r['id']; 
+                $total += (int)$r['total'];
+                $final[] = $r;
             }
-        }
-
-        // Ordenar ventas: Las más nuevas primero
-        usort($ventas, function($a, $b) {
-            return strtotime($b['fecha']) - strtotime($a['fecha']);
-        });
-
-        http_response_code(200);
-        echo json_encode([
-            'total_monto' => $totalGeneral,
-            'cantidad_ventas' => count($ventas),
-            'ventas' => $ventas
-        ]);
-        
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Error al generar reporte: ' . $e->getMessage()]);
+            echo json_encode(['total_monto' => $total, 'ventas' => $final]);
+        } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }
+    } else {
+        http_response_code(400); echo json_encode(['error' => 'Faltan fechas']);
     }
 }
 ?>

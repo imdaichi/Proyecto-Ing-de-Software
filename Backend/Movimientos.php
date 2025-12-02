@@ -1,56 +1,37 @@
 <?php
-// ============================================
-// MOVIMIENTOS.PHP - Historial Global y Por Producto
-// ============================================
+// Backend/Movimientos.php
+require_once __DIR__ . '/Config/db.php';
 
-if (!isset($db)) {
-    http_response_code(500); echo json_encode(['error' => 'Error BD']); exit;
+// PARCHE DE COMPATIBILIDAD:
+// Si en tu db.php la variable se llama $db, la copiamos a $pdo para que el resto del código funcione.
+if (!isset($pdo) && isset($db)) {
+    $pdo = $db;
 }
 
+if (!isset($pdo)) {
+    http_response_code(500); echo json_encode(['error' => 'Error: No hay conexión a BD']); exit;
+}
+
+// OBTENER MOVIMIENTOS
 if ($metodo === 'GET') {
-    $sku = $_GET['sku'] ?? null; // Ahora es opcional
-
     try {
-        $movRef = $db->collection('movimientos');
-        
+        $sku = $_GET['sku'] ?? null;
+
         if ($sku) {
-            // CASO 1: Filtrar por SKU específico
-            $query = $movRef->where('sku', '==', $sku);
-            $docs = $query->documents();
+            // Filtrar por producto específico
+            $stmt = $pdo->prepare("SELECT * FROM movimientos WHERE sku = ? ORDER BY fecha DESC");
+            $stmt->execute([$sku]);
         } else {
-            // CASO 2: Traer TODO (Global)
-            // Nota: Traemos todo y ordenamos en PHP para evitar errores de índices en Firebase
-            $docs = $movRef->documents();
-        }
-        
-        $historial = [];
-        
-        foreach ($docs as $doc) {
-            if ($doc->exists()) {
-                $data = $doc->data();
-                $data['id_mov'] = $doc->id();
-                $historial[] = $data;
-            }
+            // Traer los últimos 50 movimientos generales
+            $stmt = $pdo->query("SELECT * FROM movimientos ORDER BY fecha DESC LIMIT 50");
         }
 
-        // Ordenar por fecha DESCENDENTE (Lo más nuevo primero)
-        usort($historial, function($a, $b) {
-            $f1 = strtotime($a['fecha'] ?? 'now');
-            $f2 = strtotime($b['fecha'] ?? 'now');
-            return $f2 - $f1; 
-        });
+        $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode($movs);
 
-        // Si es global (sin SKU), limitamos a los últimos 30 para no saturar
-        if (!$sku) {
-            $historial = array_slice($historial, 0, 30);
-        }
-
-        http_response_code(200);
-        echo json_encode($historial);
-        
     } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error SQL: ' . $e->getMessage()]);
     }
 }
 ?>

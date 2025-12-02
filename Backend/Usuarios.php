@@ -1,102 +1,43 @@
 <?php
-// ============================================
-// USUARIOS.PHP - Gestión de Usuarios
-// ============================================
+// Backend/Usuarios.php
+if (!isset($pdo)) exit;
 
-// 1. Verificar conexión (Seguridad)
-if (!isset($db)) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Error de conexión interna (db no definida)']);
-    exit;
-}
-
-// ---------------------------------------------------------
-// MÉTODO GET: LISTAR TODOS LOS USUARIOS
-// ---------------------------------------------------------
 if ($metodo === 'GET') {
     try {
-        $usersRef = $db->collection('usuarios');
-        $snapshot = $usersRef->documents();
+        $stmt = $pdo->query("SELECT * FROM usuarios");
+        $usuarios = $stmt->fetchAll();
         
-        $listaUsuarios = [];
-        
-        foreach ($snapshot as $userDoc) {
-            if ($userDoc->exists()) {
-                $data = $userDoc->data();
-                
-                if(isset($data['password'])) {
-                    unset($data['password']); 
-                }
-                
-                $data['id_db'] = $userDoc->id(); 
-                
-                $listaUsuarios[] = $data;
-            }
+        // Adaptar ID para el Frontend
+        $final = [];
+        foreach($usuarios as $u){
+            $u['id_db'] = $u['id'];
+            $final[] = $u;
         }
-
-        http_response_code(200);
-        echo json_encode($listaUsuarios);
-        
+        echo json_encode($final);
     } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Error al obtener usuarios: ' . $e->getMessage()]);
+        http_response_code(500); echo json_encode(['error' => $e->getMessage()]);
     }
 }
 
-// ---------------------------------------------------------
-// MÉTODO POST: (Reservado para crear usuarios en el futuro)
-// ---------------------------------------------------------
-// ---------------------------------------------------------
-// MÉTODO POST: ACTUALIZAR USUARIO (Nombre y Rol)
-// ---------------------------------------------------------
 if ($metodo === 'POST') {
-    $id_db = $datos['id_db'] ?? null;
-    $nuevoNombre = $datos['nombre'] ?? null;
-    $nuevoRol = $datos['rol'] ?? null;
-
-    if (!$id_db) {
-        http_response_code(400); echo json_encode(['error' => 'Falta ID de usuario']); exit;
-    }
+    $id = $datos['id_db'] ?? null;
+    $nombre = $datos['nombre'] ?? '';
+    $rol = $datos['rol'] ?? 'vendedor';
 
     try {
-        $docRef = $db->collection('usuarios')->document($id_db);
-        
-        // Preparamos los datos a actualizar
-        $updateData = [];
-        if ($nuevoNombre !== null) $updateData['nombre'] = $nuevoNombre;
-        // Aseguramos que el rol sea uno válido
-        if ($nuevoRol && in_array(strtolower($nuevoRol), ['admin', 'vendedor'])) {
-            $updateData['rol'] = strtolower($nuevoRol);
+        if ($id) {
+            $stmt = $pdo->prepare("UPDATE usuarios SET nombre=?, rol=? WHERE id=?");
+            $stmt->execute([$nombre, $rol, $id]);
         }
-
-        if (!empty($updateData)) {
-            $docRef->set($updateData, ['merge' => true]); // Merge para no borrar otros campos
-            http_response_code(200);
-            echo json_encode(['mensaje' => 'Usuario actualizado correctamente']);
-        } else {
-            echo json_encode(['mensaje' => 'No hubo cambios válidos para guardar']);
-        }
-    } catch (Exception $e) {
-        http_response_code(500); echo json_encode(['error' => $e->getMessage()]);
-    }
+        echo json_encode(['mensaje' => 'Guardado']);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }
 }
-// ---------------------------------------------------------
-// MÉTODO DELETE: ELIMINAR USUARIO
-// ---------------------------------------------------------
+
 if ($metodo === 'DELETE') {
-    // Obtenemos el ID de la URL (ej: /usuarios?id=XYZ)
     $id = $_GET['id'] ?? null;
-
-    if (!$id) {
-        http_response_code(400); echo json_encode(['error' => 'Falta el ID']); exit;
-    }
-
-    try {
-        $db->collection('usuarios')->document($id)->delete();
-        http_response_code(200);
-        echo json_encode(['mensaje' => 'Usuario eliminado correctamente']);
-    } catch (Exception $e) {
-        http_response_code(500); echo json_encode(['error' => $e->getMessage()]);
+    if($id) {
+        $pdo->prepare("DELETE FROM usuarios WHERE id=?")->execute([$id]);
+        echo json_encode(['mensaje' => 'Eliminado']);
     }
 }
 ?>
