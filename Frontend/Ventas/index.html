@@ -43,13 +43,39 @@
         </aside>
     </div>
 
-    <script src="ventas.js"></script>
     <button id="btn-volver-dash" class="btn-flotante-admin" style="display:none;">
         ⚙️ Dashboard
     </button>
 
+    <!-- Modal para seleccionar método de pago -->
+    <div id="modal-metodo-pago" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Seleccionar Método de Pago</h2>
+                <button class="modal-cerrar-btn" id="cerrar-modal-pago">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="total-a-cobrar" style="text-align: center; font-size: 2rem; font-weight: bold; color: #29542e; margin-bottom: 20px;">
+                    Total: $0
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <button class="btn-metodo-pago" data-metodo="mercado_pago">
+                        💳 Mercado Pago
+                    </button>
+                    <button class="btn-metodo-pago" data-metodo="debito">
+                        💳 Débito
+                    </button>
+                    <button class="btn-metodo-pago" data-metodo="credito">
+                        💳 Crédito
+                    </button>
+                    <button class="btn-metodo-pago" data-metodo="efectivo">
+                        💵 Efectivo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="ventas.js"></script>
-</body>
-</html>
 </body>
 </html>

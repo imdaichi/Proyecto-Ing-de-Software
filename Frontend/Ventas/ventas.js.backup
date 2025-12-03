@@ -1,10 +1,10 @@
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:8000'; 
 
 function formatearPeso(num) {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(num);
+    return new Intl.NumberFormat('es-CL', {style:'currency', currency:'CLP'}).format(num);
 }
 
-window.onload = function () {
+window.onload = function() {
     const usuario = JSON.parse(sessionStorage.getItem('usuarioLogueado'));
     if (!usuario) { window.location.href = '../index.html'; return; }
 
@@ -14,12 +14,12 @@ window.onload = function () {
     // LÓGICA PARA EL BOTÓN "VOLVER AL DASHBOARD"
     // ==========================================
     const rol = (usuario.rol || usuario.role || '').toLowerCase();
-
+    
     if (rol === 'admin' || rol === 'administrador') {
         const btnVolver = document.getElementById('btn-volver-dash');
         if (btnVolver) {
             btnVolver.style.display = 'block'; // Lo hacemos visible
-
+            
             btnVolver.addEventListener('click', () => {
                 // Sube un nivel (..) y entra a Dashboard
                 window.location.href = '../Dashboard/';
@@ -27,7 +27,7 @@ window.onload = function () {
         }
     }
     // ==========================================
-
+    
     // Logout
     document.getElementById('btn-logout').addEventListener('click', () => {
         sessionStorage.removeItem('usuarioLogueado');
@@ -42,9 +42,9 @@ function iniciarVentas(usuario) {
     const escaner = document.getElementById('escaner-sku');
     const lista = document.getElementById('lista-productos-escaneados');
     const totalEl = document.getElementById('venta-total');
-
+    
     // Funciones globales para controles de cantidad
-    window.cambiarCantidad = function (index, delta) {
+    window.cambiarCantidad = function(index, delta) {
         if (ventaActual[index]) {
             ventaActual[index].cantidad += delta;
             if (ventaActual[index].cantidad <= 0) {
@@ -53,8 +53,8 @@ function iniciarVentas(usuario) {
             actualizar();
         }
     };
-
-    window.eliminarItem = function (index) {
+    
+    window.eliminarItem = function(index) {
         if (confirm('¿Eliminar este producto?')) {
             ventaActual.splice(index, 1);
             actualizar();
@@ -74,16 +74,16 @@ function iniciarVentas(usuario) {
         escaner.disabled = true;
         try {
             const res = await fetch(`${API_URL}/productos/${encodeURIComponent(sku)}`);
-            if (!res.ok) throw new Error("No encontrado");
+            if(!res.ok) throw new Error("No encontrado");
             const prod = await res.json();
-
+            
             const existe = ventaActual.find(i => i.sku === (prod.id_sku_en_db || sku));
-            if (existe) existe.cantidad++;
+            if(existe) existe.cantidad++;
             else ventaActual.push({ sku: prod.id_sku_en_db || sku, producto: prod, cantidad: 1 });
-
+            
             actualizar();
             escaner.value = ''; escaner.focus();
-        } catch (e) { alert(e.message); escaner.select(); }
+        } catch(e) { alert(e.message); escaner.select(); }
         finally { escaner.disabled = false; escaner.focus(); }
     }
 
@@ -93,11 +93,11 @@ function iniciarVentas(usuario) {
         ventaActual.forEach((item, index) => {
             const p = parseFloat(item.producto['Precio Venta'] || 0);
             total += p * item.cantidad;
-
+            
             const itemDiv = document.createElement('div');
             itemDiv.className = 'item-producto';
             itemDiv.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;';
-
+            
             itemDiv.innerHTML = `
                 <div style="flex:1;">
                     <strong>${item.producto.Titulo}</strong>
@@ -109,10 +109,10 @@ function iniciarVentas(usuario) {
                     </div>
                     <span style="min-width:40px; text-align:center; font-weight:bold;">x${item.cantidad}</span>
                 </div>
-                <div style="min-width:100px; text-align:right; font-weight:bold;">${formatearPeso(p * item.cantidad)}</div>
+                <div style="min-width:100px; text-align:right; font-weight:bold;">${formatearPeso(p*item.cantidad)}</div>
                 <button onclick="eliminarItem(${index})" style="background:none; border:none; cursor:pointer; font-size:1.3rem; padding:5px; margin-left:10px;" title="Eliminar">🗑️</button>
             `;
-
+            
             lista.appendChild(itemDiv);
         });
         totalEl.innerText = formatearPeso(total);
@@ -135,72 +135,22 @@ function iniciarVentas(usuario) {
     }
 
     document.getElementById('btn-cancelar').addEventListener('click', () => {
-        if (confirm("¿Limpiar?")) { ventaActual = []; actualizar(); escaner.focus(); }
+        if(confirm("¿Limpiar?")) { ventaActual=[]; actualizar(); escaner.focus(); }
     });
-
-    // Modal de método de pago
-    const modalMetodoPago = document.getElementById('modal-metodo-pago');
-    const cerrarModalPago = document.getElementById('cerrar-modal-pago');
-    const totalACobrar = document.getElementById('total-a-cobrar');
-    const botonesMetodoPago = document.querySelectorAll('.btn-metodo-pago');
-
-    // Abrir modal al hacer clic en COBRAR
-    document.getElementById('btn-cobrar').addEventListener('click', () => {
-        if (ventaActual.length === 0) {
-            alert("No hay productos en la venta");
-            return;
-        }
-
-        const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta'] || 0) * i.cantidad), 0);
-        totalACobrar.innerText = `Total: ${formatearPeso(totalFinal)}`;
-
-        // Mostrar modal
-        modalMetodoPago.style.display = 'flex';
-    });
-
-    // Cerrar modal
-    cerrarModalPago.addEventListener('click', () => {
-        modalMetodoPago.style.display = 'none';
-    });
-
-    // Cerrar modal al hacer clic fuera
-    modalMetodoPago.addEventListener('click', (e) => {
-        if (e.target === modalMetodoPago) {
-            modalMetodoPago.style.display = 'none';
-        }
-    });
-
-    // Procesar venta con el método de pago seleccionado
-    botonesMetodoPago.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const metodoPago = btn.getAttribute('data-metodo');
-            const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta'] || 0) * i.cantidad), 0);
-
-            try {
-                const res = await fetch(`${API_URL}/ventas`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email_usuario: usuario.email,
-                        items: ventaActual,
-                        total: totalFinal,
-                        metodo_pago: metodoPago,
-                        estado: 'completada'
-                    })
-                });
-
-                if (res.ok) {
-                    alert(`Venta procesada con ${btn.textContent.trim()}`);
-                    ventaActual = [];
-                    actualizar();
-                    modalMetodoPago.style.display = 'none';
-                    escaner.focus();
-                } else {
-                    alert("Error al procesar la venta");
-                }
-            } catch (e) {
-                alert("Error de conexión");
-            }
-        });
+    document.getElementById('btn-cobrar').addEventListener('click', async () => {
+        if(ventaActual.length===0) return;
+        if(!confirm("¿Procesar?")) return;
+        
+        const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta']||0)*i.cantidad), 0);
+        
+        try {
+            const res = await fetch(`${API_URL}/ventas`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    email_usuario: usuario.email, items: ventaActual, total: totalFinal, metodo_pago: 'efectivo', estado: 'completada'
+                })
+            });
+            if(res.ok) { alert("Venta OK"); ventaActual=[]; actualizar(); }
+        } catch(e) { alert("Error"); }
     });
 }

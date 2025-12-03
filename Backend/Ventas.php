@@ -17,7 +17,16 @@ if ($metodo === 'POST') {
         $stmt->execute([$total, $metodoPago, $emailUser, $descuento, json_encode($items)]);
         $idVenta = $pdo->lastInsertId();
 
-        // 2. Procesar Items (Descontar Stock y Bitácora)
+        // 2. Convertir método de pago a texto legible
+        $metodoPagoTexto = match($metodoPago) {
+            'mercado_pago' => 'Mercado Pago',
+            'debito' => 'Débito',
+            'credito' => 'Crédito',
+            'efectivo' => 'Efectivo',
+            default => ucfirst($metodoPago)
+        };
+
+        // 3. Procesar Items (Descontar Stock y Bitácora)
         $stmtProd = $pdo->prepare("UPDATE productos SET stock = stock - ? WHERE sku = ?");
         $stmtMov = $pdo->prepare("INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, 'salida', ?, ?, NOW())");
 
@@ -30,8 +39,8 @@ if ($metodo === 'POST') {
             if ($sku) {
                 $stmtProd->execute([$cant, $sku]);
                 
-                // Registrar movimiento
-                $detalle = "Venta #$idVenta (x$cant)";
+                // Registrar movimiento con método de pago
+                $detalle = "Venta #$idVenta (x$cant) - $metodoPagoTexto";
                 $stmtMov->execute([$sku, $titulo, $detalle, $emailUser]);
             }
         }
