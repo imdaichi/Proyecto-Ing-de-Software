@@ -164,12 +164,18 @@ function iniciarVentas(usuario) {
             const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta'] || 0) * i.cantidad), 0);
 
             try {
+                // Reducir payload: solo enviar campos necesarios por ítem
+                const itemsMin = ventaActual.map(i => ({
+                    sku: i.sku,
+                    cantidad: i.cantidad,
+                    titulo: i.producto?.Titulo || i.producto?.titulo || undefined
+                }));
                 const res = await fetch(`${API_URL}/ventas`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email_usuario: usuario.email,
-                        items: ventaActual,
+                        items: itemsMin,
                         total: totalFinal,
                         metodo_pago: metodoPago,
                         estado: 'completada'
@@ -183,7 +189,8 @@ function iniciarVentas(usuario) {
                     modalMetodoPago.style.display = 'none';
                     escaner.focus();
                 } else {
-                    alert("Error al procesar la venta");
+                    const err = await res.json().catch(()=>({}));
+                    alert("Error al procesar la venta" + (err.error?`: ${err.error}`:''));
                 }
             } catch (e) {
                 alert("Error de conexión");

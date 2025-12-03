@@ -12,4 +12,5 @@
 # Esto es específico de tu máquina local.
 /.vscode/
 
+Backend/firebase-credentials.json
 

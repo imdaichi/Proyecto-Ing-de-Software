@@ -525,6 +525,7 @@ window.abrirModalEditarProducto = async function(sku) {
         document.getElementById('edit-prod-variante').value = p.variantes || '';
         document.getElementById('edit-prod-cat').value = p.categoria || '';
         document.getElementById('edit-prod-desc').value = p.descripcion || '';
+        document.getElementById('edit-prod-estado').value = (p.estado || 'activo').toLowerCase();
 
         document.getElementById('modal-editar-prod').style.display = 'flex';
     } catch(e) { alert("Error: " + e.message); }
@@ -539,6 +540,7 @@ document.getElementById('btn-guardar-prod-edit')?.addEventListener('click', asyn
         variantes: document.getElementById('edit-prod-variante').value,
         categoria: document.getElementById('edit-prod-cat').value,
         descripcion: document.getElementById('edit-prod-desc').value,
+        estado: document.getElementById('edit-prod-estado').value,
         usuario: usuarioLogueado.nombre || 'Admin Web'
     };
     try {

@@ -2,6 +2,25 @@
 
 if (!isset($pdo)) exit;
 
+// Inicializar Firebase (solo una vez)
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Kreait\Firebase\Factory;
+
+$firebase = null;
+$firestore = null;
+
+try {
+    $credentialsPath = __DIR__ . '/firebase-credentials.json';
+    if (file_exists($credentialsPath)) {
+        $firebase = (new Factory)->withServiceAccount($credentialsPath);
+        $firestore = $firebase->createFirestore()->database();
+    }
+} catch (Exception $e) {
+    error_log("Firebase init error: " . $e->getMessage());
+    $firestore = null;
+}
+
 if ($metodo === 'POST') {
     try {
         $pdo->beginTransaction();
@@ -55,6 +74,23 @@ if ($metodo === 'POST') {
 
             $detalle = "Venta #$idVenta (x$cant) - $metodoPagoTexto | Stock: $stockAntes → $stockDespues";
             $stmtMov->execute([$sku, $tituloFinal, $detalle, $emailUser]);
+
+            // Actualizar stock en Firebase
+            if ($firestore) {
+                try {
+                    $docRef = $firestore->collection('productos')->document($sku);
+                    $snapshot = $docRef->snapshot();
+                    if ($snapshot->exists()) {
+                        $currentStock = (int)($snapshot->data()['Stock'] ?? 0);
+                        $newStock = max(0, $currentStock - $cant);
+                        $docRef->update([
+                            ['path' => 'Stock', 'value' => $newStock]
+                        ]);
+                    }
+                } catch (Exception $fbError) {
+                    error_log("Firebase update error for SKU $sku: " . $fbError->getMessage());
+                }
+            }
         }
 
         $pdo->commit();

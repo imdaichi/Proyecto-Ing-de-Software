@@ -264,7 +264,7 @@
             </div>
         </main>
     </div>
-    <button class="btn-flotante" onclick="accionBotonFlotante()" title="Editar Producto por SKU">+</button>
+    
 
     <div id="modal-editar-usuario" class="modal-overlay" style="display:none; z-index:99999;">
         <div class="modal-content" style="width:400px;">
@@ -341,6 +341,14 @@
                         <label>Categoría:</label>
                         <input type="text" id="edit-prod-cat" placeholder="Ej: Pijamas">
                     </div>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label>Estado:</label>
+                    <select id="edit-prod-estado" style="width:100%; padding:12px; border:1px solid #ccc; border-radius:6px;">
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                    </select>
                 </div>
 
                 <label style="margin-top:10px;">Descripción:</label>

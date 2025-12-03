@@ -1,7 +1,24 @@
 <?php
 require_once __DIR__ . '/Config/db.php';
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Kreait\Firebase\Factory;
 
 if (!isset($pdo) && isset($db)) { $pdo = $db; }
+
+$firebase = null;
+$firestore = null;
+
+try {
+    $credentialsPath = __DIR__ . '/firebase-credentials.json';
+    if (file_exists($credentialsPath)) {
+        $firebase = (new Factory)->withServiceAccount($credentialsPath);
+        $firestore = $firebase->createFirestore()->database();
+    }
+} catch (Exception $e) {
+    error_log("Firebase init error: " . $e->getMessage());
+    $firestore = null;
+}
 
 if ($metodo === 'GET') {
     global $partes; $skuUrl = $partes[1] ?? null;
@@ -43,6 +60,7 @@ if ($metodo === 'POST') {
         $nVariantes = $datos['variantes'] ?? $viejo['variantes'];
         $nDesc      = $datos['descripcion'] ?? $viejo['descripcion'];
         $nCat       = $datos['categoria'] ?? $viejo['categoria'];
+        $nEstado    = $datos['estado'] ?? $viejo['estado'];
         
         $user = $datos['usuario'] ?? 'Admin Web';
         
@@ -64,6 +82,12 @@ if ($metodo === 'POST') {
             $cambios[] = "📝 Descripción Modificada";
         }
 
+        if ($nEstado !== $viejo['estado']) {
+            $eOld = ucfirst($viejo['estado']);
+            $eNew = ucfirst($nEstado);
+            $cambios[] = "Estado: <b>$eOld</b> ➝ <b>$eNew</b>";
+        }
+
 
         if ($nStock != $viejo['stock']) {
             $tipoMov = $nStock > $viejo['stock'] ? 'entrada' : 'salida'; 
@@ -81,8 +105,32 @@ if ($metodo === 'POST') {
             $sqlMov = "INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, ?, ?, ?, NOW())";
             $pdo->prepare($sqlMov)->execute([$sku, $nTitulo, $tipoMov, $detalleFinal, $user]);
 
-            $sqlUpd = "UPDATE productos SET titulo=?, precio_venta=?, stock=?, variantes=?, descripcion=?, categoria=? WHERE sku=?";
-            $pdo->prepare($sqlUpd)->execute([$nTitulo, $nPrecio, $nStock, $nVariantes, $nDesc, $nCat, $sku]);
+            $sqlUpd = "UPDATE productos SET titulo=?, precio_venta=?, stock=?, variantes=?, descripcion=?, categoria=?, estado=? WHERE sku=?";
+            $pdo->prepare($sqlUpd)->execute([$nTitulo, $nPrecio, $nStock, $nVariantes, $nDesc, $nCat, $nEstado, $sku]);
+            
+            // Sincronizar con Firebase
+            if ($firestore) {
+                try {
+                    $docRef = $firestore->collection('productos')->document($sku);
+                    $snapshot = $docRef->snapshot();
+                    if ($snapshot->exists()) {
+                        $updateData = [];
+                        if ($nTitulo !== $viejo['titulo']) $updateData[] = ['path' => 'Titulo', 'value' => $nTitulo];
+                        if ($nStock != $viejo['stock']) $updateData[] = ['path' => 'Stock', 'value' => $nStock];
+                        if ($nPrecio != $viejo['precio_venta']) $updateData[] = ['path' => 'Precio Venta', 'value' => (string)$nPrecio];
+                        if ($nEstado !== $viejo['estado']) $updateData[] = ['path' => 'Estado', 'value' => ucfirst($nEstado)];
+                        if ($nVariantes !== $viejo['variantes']) $updateData[] = ['path' => 'Variantes', 'value' => $nVariantes ?: ''];
+                        if ($nDesc !== $viejo['descripcion']) $updateData[] = ['path' => 'Descripcion', 'value' => $nDesc ?: ''];
+                        if ($nCat !== $viejo['categoria']) $updateData[] = ['path' => 'Categoria', 'value' => $nCat ?: ''];
+                        
+                        if (!empty($updateData)) {
+                            $docRef->update($updateData);
+                        }
+                    }
+                } catch (Exception $fbError) {
+                    error_log("Firebase update error for SKU $sku: " . $fbError->getMessage());
+                }
+            }
             
             echo json_encode(['mensaje'=>'Cambios registrados en bitácora']);
         } else {

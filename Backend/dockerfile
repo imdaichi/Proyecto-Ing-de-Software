@@ -3,12 +3,14 @@
 # 1. Usamos PHP 8.0
 FROM php:8.0-apache
 
-# 2. Instalamos las dependencias del sistema
+# 2. Instalamos las dependencias del sistema y gRPC
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     zlib1g-dev \
     libzip-dev \
+    && pecl install grpc \
+    && docker-php-ext-enable grpc \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Activamos el módulo 'rewrite' de Apache (para que .htaccess funcione)
