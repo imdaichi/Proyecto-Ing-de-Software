@@ -17,8 +17,19 @@ document.getElementById('btn-logout')?.addEventListener('click', ()=>{
 window.cerrarModal = function(id) { document.getElementById(id).style.display = 'none'; };
 
 // --- 2. NAVEGACIÓN ---
+let cargadoNotif = false;
 window.verSeccion = function(id) {
-    const tabs = ['home', 'prod', 'rep', 'users', 'prov'];
+    const tabs = ['home', 'prod', 'rep', 'users', 'prov', 'notif'];
+    
+    // Highlight bell button when in notif section
+    const bellBtn = document.getElementById('btn-notif-bell');
+    if (bellBtn) {
+        if (id === 'notif') {
+            bellBtn.style.background = '#122028';
+        } else {
+            bellBtn.style.background = '#29542e';
+        }
+    }
     tabs.forEach(t => {
         const sec = document.getElementById('sec-' + t);
         const nav = document.getElementById('nav-' + t);
@@ -42,6 +53,7 @@ window.verSeccion = function(id) {
     if(id === 'prod') cargarMovimientos();
     if(id === 'users') cargarUsuarios();
     if(id === 'prov') cargarProveedores();
+    if(id === 'notif' && !cargadoNotif) { cargadoNotif = true; cargarNotificaciones(); }
 };
 
 
@@ -89,6 +101,7 @@ async function cargarResumenDashboard() {
 }
 // Carga inicial
 cargarResumenDashboard();
+cargarBadgeNotificaciones();
 
 
 // ==========================================
@@ -143,10 +156,10 @@ async function cargarMovimientos(skuFiltro = null) {
 
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-size:0.85rem;">${new Date(m.fecha).toLocaleString()}</td>
-                    <td><b>${m.sku}</b> ${btnEditRow}<br><small>${m.titulo}</small></td>
-                    <td><span style="background:${color}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${tipo.toUpperCase()}</span></td>
-                    <td style="font-size:0.9rem;">${detalle}</td>
+                    <td style="padding:10px; font-size:0.85rem; min-width:150px;">${new Date(m.fecha).toLocaleString()}</td>
+                    <td style="padding-left:20px;"><b>${m.sku}</b> ${btnEditRow}<br><small>${m.titulo}</small></td>
+                    <td style="text-align:center; min-width:120px;"><span style="background:${color}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${tipo.toUpperCase()}</span></td>
+                    <td style="font-size:0.9rem; text-align:center;">${detalle}</td>
                     <td style="font-size:0.85rem;">${m.usuario || 'Sistema'}</td>
                 </tr>`;
         });
@@ -439,3 +452,51 @@ document.getElementById('btn-buscar-prod-modal')?.addEventListener('click', () =
         alert("Ingresa un SKU válido");
     }
 });
+
+
+// ==========================================
+// 11. NOTIFICACIONES (PRODUCTOS +80 DÍAS)
+// ==========================================
+async function cargarNotificaciones() {
+    const tbody = document.getElementById('tabla-notif-body');
+    const resumen = document.getElementById('notif-resumen');
+    const countSpan = document.getElementById('notif-count');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando...</td></tr>';
+    try {
+        const res = await fetch(`${API_URL}/notificaciones`);
+        const data = await res.json();
+        tbody.innerHTML = '';
+        if (data.alertas && data.alertas.length > 0) {
+            resumen.style.display = 'block';
+            countSpan.innerText = data.total;
+            data.alertas.forEach(a => {
+                const color = a.dias_bodega > 120 ? '#e74c3c' : (a.dias_bodega > 100 ? '#f39c12' : '#ffc107');
+                const btnEditar = `<button class="btn-editar-tabla" title="Editar Producto" onclick="abrirModalEditarProducto('${a.sku}')">✏️</button>`;
+                tbody.innerHTML += `<tr style="border-bottom:1px solid #eee;"><td><b>${a.sku}</b></td><td>${a.titulo}</td><td>${a.stock}</td><td>${a.categoria||'-'}</td><td>${a.ultima_entrada ? new Date(a.ultima_entrada).toLocaleDateString() : '-'}</td><td style="color:${color}; font-weight:bold;">${a.dias_bodega} días</td><td align="right">${btnEditar}</td></tr>`;
+            });
+        } else {
+            resumen.style.display = 'none';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#27ae60;">✅ Ningún producto supera los 80 días en bodega</td></tr>';
+        }
+    } catch (e) { tbody.innerHTML = `<tr><td colspan="6" style="color:red;">${e.message}</td></tr>`; }
+}
+
+async function cargarBadgeNotificaciones() {
+    try {
+        const res = await fetch(`${API_URL}/notificaciones`);
+        const data = await res.json();
+        const badge = document.getElementById('badge-notif');
+        if (data.total > 0) {
+            badge.innerText = data.total;
+            badge.style.display = 'inline-block';
+            badge.classList.add('badge-pulse');
+        } else {
+            badge.style.display = 'none';
+            badge.classList.remove('badge-pulse');
+        }
+    } catch (e) { console.error('Error badge:', e); }
+}
+
+// Cargar badge al iniciar
+cargarBadgeNotificaciones();

@@ -20,8 +20,8 @@ if ($metodo === 'GET') {
     // ==========================================
     if ($tipo === 'dashboard') {
         try {
-            // 1. Inventario
-            $sqlInv = "SELECT SUM(precio_venta * stock) as total FROM productos WHERE estado = 'activo'";
+            // 1. Inventario (solo productos activos con stock > 0)
+            $sqlInv = "SELECT SUM(precio_venta * stock) as total FROM productos WHERE estado = 'activo' AND stock > 0";
             $resInv = $pdo->query($sqlInv)->fetch(PDO::FETCH_ASSOC);
             $valorInventario = (int)($resInv['total'] ?? 0);
 

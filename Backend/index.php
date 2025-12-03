@@ -50,6 +50,7 @@ switch ($entidad) {
     case 'proveedores': require __DIR__ . '/Proveedores.php'; break;
     case 'login':       require __DIR__ . '/Login.php'; break;
     case 'importar':    require __DIR__ . '/ImportarCSV.php'; break;
+    case 'notificaciones': require __DIR__ . '/Notificaciones.php'; break;
 
     default:
         // Si entras a la raíz, no da error, solo saluda
