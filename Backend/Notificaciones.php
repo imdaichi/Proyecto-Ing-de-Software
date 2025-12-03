@@ -1,11 +1,8 @@
 <?php
-// Backend/Notificaciones.php
 if (!isset($pdo)) exit;
 
 if ($metodo === 'GET') {
     try {
-        // Productos con más de 80 días desde última entrada en movimientos
-        // Buscar última entrada por SKU y calcular días
         $sql = "
             SELECT 
                 p.sku,

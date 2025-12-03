@@ -4,7 +4,14 @@
 const API_URL = 'http://localhost:8000';
 const usuarioLogueado = JSON.parse(sessionStorage.getItem('usuarioLogueado'));
 
-// --- 1. SEGURIDAD ---
+function formatCLP(num) {
+    try {
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(Number(num) || 0);
+    } catch (e) {
+        return '$' + (Number(num) || 0).toLocaleString('es-CL');
+    }
+}
+
 if (!usuarioLogueado) window.location.href = '../index.html';
 if ((usuarioLogueado.rol || usuarioLogueado.role || '').toLowerCase() !== 'admin') { 
     alert("Acceso restringido."); window.location.href='../Ventas/'; 
@@ -16,19 +23,14 @@ document.getElementById('btn-logout')?.addEventListener('click', ()=>{
 
 window.cerrarModal = function(id) { document.getElementById(id).style.display = 'none'; };
 
-// --- 2. NAVEGACIÓN ---
 let cargadoNotif = false;
 window.verSeccion = function(id) {
     const tabs = ['home', 'prod', 'rep', 'users', 'prov', 'notif'];
     
-    // Highlight bell button when in notif section
     const bellBtn = document.getElementById('btn-notif-bell');
     if (bellBtn) {
-        if (id === 'notif') {
-            bellBtn.style.background = '#122028';
-        } else {
-            bellBtn.style.background = '#29542e';
-        }
+        bellBtn.style.background = 'none';
+        bellBtn.style.color = (id === 'notif') ? '#122028' : '#29542e';
     }
     tabs.forEach(t => {
         const sec = document.getElementById('sec-' + t);
@@ -42,13 +44,11 @@ window.verSeccion = function(id) {
     if(sec) sec.classList.add('active');
     if(nav) nav.classList.add('active');
 
-    // Control del botón flotante - solo visible en Bitácora
     const btnFlotante = document.querySelector('.btn-flotante');
     if(btnFlotante) {
         btnFlotante.style.display = (id === 'prod') ? 'flex' : 'none';
     }
 
-    // Cargas automáticas
     if(id === 'home') cargarResumenDashboard();
     if(id === 'prod') cargarMovimientos();
     if(id === 'users') cargarUsuarios();
@@ -67,9 +67,7 @@ async function cargarResumenDashboard() {
         const data = await res.json();
 
         document.getElementById('kpi-top-prod').innerText = data.top_producto || 'Sin ventas';
-        document.getElementById('kpi-valor-inv').innerText = "$" + (data.valor_inventario || 0).toLocaleString();
-        
-        // Eliminado KPI de Mes Actual
+        document.getElementById('kpi-valor-inv').innerText = formatCLP(data.valor_inventario || 0);
 
         const ctx = document.getElementById('graficoVentas').getContext('2d');
         const etiquetas = Object.keys(data.ventas_mes); 
@@ -84,7 +82,7 @@ async function cargarResumenDashboard() {
                 datasets: [{
                     label: 'Ventas Totales ($)',
                     data: valores,
-                    backgroundColor: 'rgba(41, 84, 46, 0.6)', // Verde #29542e con transparencia
+                    backgroundColor: 'rgba(41, 84, 46, 0.6)', 
                     borderColor: '#29542e',
                     borderWidth: 1,
                     borderRadius: 5
@@ -99,7 +97,6 @@ async function cargarResumenDashboard() {
         });
     } catch (e) { console.error("Error dashboard:", e); }
 }
-// Carga inicial
 cargarResumenDashboard();
 cargarBadgeNotificaciones();
 
@@ -107,12 +104,21 @@ cargarBadgeNotificaciones();
 // ==========================================
 // 4. BITÁCORA DE MOVIMIENTOS
 // ==========================================
-async function cargarMovimientos(skuFiltro = null) {
+let movimientosData = [];
+let movimientosPaginaActual = 1;
+const MOVS_POR_PAGINA = 10;
+let skuFiltroActual = null;
+
+async function cargarMovimientos(skuFiltro = null, page = 1) {
     const tbody = document.getElementById('tabla-mov-body');
     const infoDiv = document.getElementById('info-producto');
+    const paginador = document.getElementById('mov-paginador');
+    const paginadorTop = document.getElementById('mov-paginador-top');
     if(!tbody) return;
     
     tbody.innerHTML = '<tr><td colspan="5" align="center">Cargando...</td></tr>';
+    skuFiltroActual = skuFiltro;
+    movimientosPaginaActual = page || 1;
 
     try {
         if (skuFiltro) {
@@ -122,7 +128,7 @@ async function cargarMovimientos(skuFiltro = null) {
                 infoDiv.style.display = 'block';
                 document.getElementById('lbl-titulo').innerText = `${prod.Titulo} (${prod.id_sku_en_db})`;
                 document.getElementById('lbl-stock').innerText = prod.Stock || 0;
-                document.getElementById('lbl-precio').innerText = "$" + (prod['Precio Venta'] || 0);
+                document.getElementById('lbl-precio').innerText = formatCLP(prod['Precio Venta'] || 0);
             }
         } else {
             if(infoDiv) infoDiv.style.display = 'none';
@@ -130,48 +136,102 @@ async function cargarMovimientos(skuFiltro = null) {
 
         let url = `${API_URL}/movimientos` + (skuFiltro ? `?sku=${encodeURIComponent(skuFiltro)}` : '');
         const resMov = await fetch(url);
-        const movimientos = await resMov.json();
+        movimientosData = await resMov.json();
 
         tbody.innerHTML = '';
-        if (movimientos.length === 0) {
+        if (!Array.isArray(movimientosData) || movimientosData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" align="center">No hay movimientos.</td></tr>';
+            if (paginador) paginador.style.display = 'none';
+            if (paginadorTop) paginadorTop.style.display = 'none';
             return;
         }
 
-        movimientos.forEach(m => {
-            let color = '#95a5a6'; // Gris
-            let tipo = (m.tipo || '').toLowerCase();
-            if(tipo.includes('entrada')) color = '#27ae60'; // Verde
-            if(tipo.includes('salida')) color = '#c0392b'; // Rojo
-            if(tipo.includes('precio')) color = '#f39c12'; // Naranja
-            if(tipo.includes('edicion')) color = '#3498db'; // Azul
+        renderMovimientosPage();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:red">${e.message}</td></tr>`;
+        if (paginador) paginador.style.display = 'none';
+        if (paginadorTop) paginadorTop.style.display = 'none';
+    }
+}
 
-            let detalle = m.detalle || '-';
-            if (m.proveedor && tipo.includes('entrada')) {
-                detalle += `<br><span style="color:#27ae60; font-size:0.8rem;">🚚 ${m.proveedor}</span>`;
-            }
+function renderMovimientosPage() {
+    const tbody = document.getElementById('tabla-mov-body');
+    const total = movimientosData.length;
+    const totalPages = Math.ceil(total / MOVS_POR_PAGINA) || 1;
+    if (movimientosPaginaActual > totalPages) movimientosPaginaActual = totalPages;
+    const start = (movimientosPaginaActual - 1) * MOVS_POR_PAGINA;
+    const end = Math.min(start + MOVS_POR_PAGINA, total);
+    const pageItems = movimientosData.slice(start, end);
 
-            // BOTÓN DE EDICIÓN RÁPIDA EN LA TABLA
-            let btnEditRow = `<button onclick="abrirModalEditarProducto('${m.sku}')" style="border:none; bg:none; cursor:pointer;" title="Editar">✏️</button>`;
+    tbody.innerHTML = '';
+    pageItems.forEach(m => {
+        let color = '#95a5a6';
+        let tipo = (m.tipo || '').toLowerCase();
+        if(tipo.includes('entrada')) color = '#27ae60';
+        if(tipo.includes('salida') || tipo.includes('venta')) color = '#c0392b';
+        if(tipo.includes('precio')) color = '#f39c12';
+        if(tipo.includes('edicion')) color = '#3498db';
 
-            tbody.innerHTML += `
-                <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-size:0.85rem; min-width:150px;">${new Date(m.fecha).toLocaleString()}</td>
-                    <td style="padding-left:20px;"><b>${m.sku}</b> ${btnEditRow}<br><small>${m.titulo}</small></td>
-                    <td style="text-align:center; min-width:120px;"><span style="background:${color}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${tipo.toUpperCase()}</span></td>
-                    <td style="font-size:0.9rem; text-align:center;">${detalle}</td>
-                    <td style="font-size:0.85rem;">${m.usuario || 'Sistema'}</td>
-                </tr>`;
-        });
-    } catch (e) { tbody.innerHTML = `<tr><td colspan="5" style="color:red">${e.message}</td></tr>`; }
+        let detalle = m.detalle || '-';
+        if (m.proveedor && tipo.includes('entrada')) {
+            detalle += `<br><span style="color:#27ae60; font-size:0.8rem;">🚚 ${m.proveedor}</span>`;
+        }
+
+        let btnEditRow = `<button onclick="abrirModalEditarProducto('${m.sku}')" style="border:none; bg:none; cursor:pointer;" title="Editar">✏️</button>`;
+
+        tbody.innerHTML += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px; font-size:0.85rem; min-width:150px;">${new Date(m.fecha).toLocaleString()}</td>
+                <td style="padding-left:20px;"><b>${m.sku}</b> ${btnEditRow}<br><small>${m.titulo}</small></td>
+                <td style="text-align:center; min-width:120px;"><span style="background:${color}; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${tipo.toUpperCase()}</span></td>
+                <td style="font-size:0.9rem; text-align:center;">${detalle}</td>
+                <td style="font-size:0.85rem;">${m.usuario || 'Sistema'}</td>
+            </tr>`;
+    });
+
+    renderMovimientosPager(totalPages);
+}
+
+function renderMovimientosPager(totalPages) {
+    const paginador = document.getElementById('mov-paginador');
+    const pageInfo = document.getElementById('mov-page-info');
+    const btnPrev = document.getElementById('mov-prev');
+    const btnNext = document.getElementById('mov-next');
+    if (paginador && pageInfo && btnPrev && btnNext) {
+        if (totalPages <= 1) { paginador.style.display = 'none'; }
+        else {
+            paginador.style.display = 'flex';
+            pageInfo.textContent = `Página ${movimientosPaginaActual} de ${totalPages}`;
+            btnPrev.disabled = movimientosPaginaActual <= 1;
+            btnNext.disabled = movimientosPaginaActual >= totalPages;
+            btnPrev.onclick = () => { if (movimientosPaginaActual > 1) { movimientosPaginaActual--; renderMovimientosPage(); } };
+            btnNext.onclick = () => { if (movimientosPaginaActual < totalPages) { movimientosPaginaActual++; renderMovimientosPage(); } };
+        }
+    }
+
+    const paginadorTop = document.getElementById('mov-paginador-top');
+    const pageInfoTop = document.getElementById('mov-page-info-top');
+    const btnPrevTop = document.getElementById('mov-prev-top');
+    const btnNextTop = document.getElementById('mov-next-top');
+    if (paginadorTop && pageInfoTop && btnPrevTop && btnNextTop) {
+        if (totalPages <= 1) { paginadorTop.style.display = 'none'; }
+        else {
+            paginadorTop.style.display = 'flex';
+            pageInfoTop.textContent = `Página ${movimientosPaginaActual} de ${totalPages}`;
+            btnPrevTop.disabled = movimientosPaginaActual <= 1;
+            btnNextTop.disabled = movimientosPaginaActual >= totalPages;
+            btnPrevTop.onclick = () => { if (movimientosPaginaActual > 1) { movimientosPaginaActual--; renderMovimientosPage(); } };
+            btnNextTop.onclick = () => { if (movimientosPaginaActual < totalPages) { movimientosPaginaActual++; renderMovimientosPage(); } };
+        }
+    }
 }
 
 document.getElementById('btn-buscar')?.addEventListener('click', () => {
     const sku = document.getElementById('sku-buscar').value.trim();
-    if(sku) cargarMovimientos(sku); else alert("Ingresa SKU");
+    if(sku) cargarMovimientos(sku, 1); else alert("Ingresa SKU");
 });
 document.getElementById('btn-ver-todos')?.addEventListener('click', () => {
-    document.getElementById('sku-buscar').value = ''; cargarMovimientos(null);
+    document.getElementById('sku-buscar').value = ''; cargarMovimientos(null, 1);
 });
 
 
@@ -189,38 +249,95 @@ if (btnReporte) {
         try {
             const res = await fetch(`${API_URL}/reportes?inicio=${ini}&fin=${fin}`);
             const data = await res.json();
-            
-            document.getElementById('resumen').style.display='block';
-            const totalCLP = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseInt(data.total_monto || 0));
-            document.getElementById('txt-monto').innerText = totalCLP;
-            
-            const tbody = document.getElementById('tabla-rep');
-            tbody.innerHTML='';
-            
-            if (data.ventas && data.ventas.length > 0) {
-                data.ventas.forEach(v => {
-                    const items = Array.isArray(v.items) ? v.items : [];
-                    let lista = items.map(i=>{
-                        let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:null)||'Prod';
-                        return `• ${n} (x${i.cantidad})`;
-                    }).join('<br>');
 
-                    let pago = v.metodo_pago || '-';
-                    
-                    tbody.innerHTML += `
-                    <tr style="border-bottom:1px solid #eee">
-                        <td style="padding:10px">${new Date(v.fecha).toLocaleString()}</td>
-                        <td><small>${v.id_venta.substr(0,8)}</small></td>
-                        <td>${v.email_usuario}</td>
-                        <td>${pago}</td>
-                        <td>${lista}</td>
-                        <td style="text-align:right"><b>$${v.total}</b></td>
-                    </tr>`;
-                });
+            document.getElementById('resumen').style.display='block';
+            const totalCLP = formatCLP(parseInt(data.total_monto || 0));
+            document.getElementById('txt-monto').innerText = totalCLP;
+
+            // Guardar ventas para paginación y render inicial
+            window.ventasData = Array.isArray(data.ventas) ? data.ventas : [];
+            window.ventasPaginaActual = 1;
+            window.VENTAS_POR_PAGINA = 10;
+
+            renderReportePage();
+
+            if (window.ventasData.length > 0) {
                 document.getElementById('container-excel').style.display='block';
-            } else { tbody.innerHTML='<tr><td colspan="6" align="center">Sin ventas</td></tr>'; }
+            }
         } catch(e) { console.error(e); }
     });
+}
+
+function renderReportePage() {
+    const tbody = document.getElementById('tabla-rep');
+    const total = window.ventasData.length;
+    const totalPages = Math.ceil(total / window.VENTAS_POR_PAGINA) || 1;
+    if (window.ventasPaginaActual > totalPages) window.ventasPaginaActual = totalPages;
+    const start = (window.ventasPaginaActual - 1) * window.VENTAS_POR_PAGINA;
+    const end = Math.min(start + window.VENTAS_POR_PAGINA, total);
+    const pageItems = window.ventasData.slice(start, end);
+
+    tbody.innerHTML = '';
+
+    if (pageItems.length === 0) {
+        tbody.innerHTML='<tr><td colspan="6" align="center">Sin ventas</td></tr>';
+        renderReportePager(1);
+        return;
+    }
+
+    pageItems.forEach(v => {
+        const items = Array.isArray(v.items) ? v.items : [];
+        let lista = items.map(i=>{
+            let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:null)||'Prod';
+            return `• ${n} (x${i.cantidad})`;
+        }).join('<br>');
+        let pago = v.metodo_pago || '-';
+
+        tbody.innerHTML += `
+        <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px">${new Date(v.fecha).toLocaleString()}</td>
+            <td><small>${(v.id_venta||'').toString().substr(0,8)}</small></td>
+            <td>${v.email_usuario}</td>
+            <td>${pago}</td>
+            <td>${lista}</td>
+            <td style="text-align:right"><b>${formatCLP(v.total)}</b></td>
+        </tr>`;
+    });
+
+    renderReportePager(totalPages);
+}
+
+function renderReportePager(totalPages) {
+    const paginador = document.getElementById('rep-paginador');
+    const pageInfo = document.getElementById('rep-page-info');
+    const btnPrev = document.getElementById('rep-prev');
+    const btnNext = document.getElementById('rep-next');
+    if (paginador && pageInfo && btnPrev && btnNext) {
+        if (totalPages <= 1) { paginador.style.display = 'none'; }
+        else {
+            paginador.style.display = 'flex';
+            pageInfo.textContent = `Página ${window.ventasPaginaActual} de ${totalPages}`;
+            btnPrev.disabled = window.ventasPaginaActual <= 1;
+            btnNext.disabled = window.ventasPaginaActual >= totalPages;
+            btnPrev.onclick = () => { if (window.ventasPaginaActual > 1) { window.ventasPaginaActual--; renderReportePage(); } };
+            btnNext.onclick = () => { if (window.ventasPaginaActual < totalPages) { window.ventasPaginaActual++; renderReportePage(); } };
+        }
+    }
+    const paginadorTop = document.getElementById('rep-paginador-top');
+    const pageInfoTop = document.getElementById('rep-page-info-top');
+    const btnPrevTop = document.getElementById('rep-prev-top');
+    const btnNextTop = document.getElementById('rep-next-top');
+    if (paginadorTop && pageInfoTop && btnPrevTop && btnNextTop) {
+        if (totalPages <= 1) { paginadorTop.style.display = 'none'; }
+        else {
+            paginadorTop.style.display = 'flex';
+            pageInfoTop.textContent = `Página ${window.ventasPaginaActual} de ${totalPages}`;
+            btnPrevTop.disabled = window.ventasPaginaActual <= 1;
+            btnNextTop.disabled = window.ventasPaginaActual >= totalPages;
+            btnPrevTop.onclick = () => { if (window.ventasPaginaActual > 1) { window.ventasPaginaActual--; renderReportePage(); } };
+            btnNextTop.onclick = () => { if (window.ventasPaginaActual < totalPages) { window.ventasPaginaActual++; renderReportePage(); } };
+        }
+    }
 }
 
 const btnExcel = document.getElementById('btn-exportar-excel');
@@ -237,15 +354,15 @@ if(btnExcel) {
             if(!data.ventas?.length) { alert("Sin datos"); return; }
 
             const rows = data.ventas.map(v => {
-                 let items = Array.isArray(v.items) ? v.items : [];
-                 let det = items.map(i => {
-                     let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:''); 
-                     return `${n} (x${i.cantidad})`;
-                 }).join(', ');
-                 return {
-                     "ID": v.id_venta, "Fecha": v.fecha, "Vendedor": v.email_usuario,
-                     "Pago": v.metodo_pago, "Productos": det, "Total": v.total
-                 };
+                let items = Array.isArray(v.items) ? v.items : [];
+                let det = items.map(i => {
+                    let n = i.titulo||i.Titulo||(i.producto?i.producto.Titulo:''); 
+                    return `${n} (x${i.cantidad})`;
+                }).join(', ');
+                return {
+                    "ID": v.id_venta, "Fecha": v.fecha, "Vendedor": v.email_usuario,
+                    "Pago": v.metodo_pago, "Productos": det, "Total": v.total
+                };
             });
             
             const wb = XLSX.utils.book_new();
@@ -304,7 +421,6 @@ window.eliminarUsuario = async function(id, email) {
     cargarUsuarios();
 };
 
-// Crear usuario (similar a Proveedores)
 document.getElementById('btn-nuevo-user')?.addEventListener('click', () => {
     document.getElementById('modal-crear-usuario').style.display = 'flex';
 });
@@ -497,6 +613,4 @@ async function cargarBadgeNotificaciones() {
         }
     } catch (e) { console.error('Error badge:', e); }
 }
-
-// Cargar badge al iniciar
 cargarBadgeNotificaciones();

@@ -1,5 +1,4 @@
 <?php
-// Backend/Usuarios.php
 if (!isset($pdo)) exit;
 
 if ($metodo === 'GET') {
@@ -7,7 +6,6 @@ if ($metodo === 'GET') {
         $stmt = $pdo->query("SELECT * FROM usuarios");
         $usuarios = $stmt->fetchAll();
         
-        // Adaptar ID para el Frontend
         $final = [];
         foreach($usuarios as $u){
             $u['id_db'] = $u['id'];
@@ -28,14 +26,11 @@ if ($metodo === 'POST') {
 
     try {
         if ($id) {
-            // Actualizar existente
             $stmt = $pdo->prepare("UPDATE usuarios SET nombre=?, rol=? WHERE id=?");
             $stmt->execute([$nombre, $rol, $id]);
         } else {
-            // Crear nuevo
             if (!$email) { throw new Exception('Email obligatorio'); }
             if (!$contrasena) { throw new Exception('Contraseña obligatoria'); }
-            // Si viene contraseña, hash, de lo contrario null
             $hash = password_hash($contrasena, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, rol, password) VALUES (?, ?, ?, ?)");
             $stmt->execute([$nombre, $email, $rol, $hash]);

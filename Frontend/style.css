@@ -112,7 +112,6 @@ body {
     border-left: 1px solid #ddd; 
 }
 
-/* Ajustes de tamaño y centrado para botones de venta */
 .columna-acciones .accion-btn {
     padding: 12px;            /* más pequeño */
     font-size: 1.2rem;        /* letras un poco más grandes */
@@ -122,7 +121,6 @@ body {
     align-self: center;       /* centrar el botón dentro de la columna */
 }
 
-/* Mantener estilo peligro con nuevos tamaños */
 .columna-acciones .accion-btn.accion-peligro {
     padding: 12px;
     font-size: 1.2rem;        /* letras un poco más grandes */
@@ -200,7 +198,6 @@ body {
     transform: translateY(-2px);
 }
 
-/*Admin*/
 .panel-admin-spacer {
     margin-top: auto; 
 }
@@ -259,9 +256,9 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro */
-    z-index: 9999 !important; /* <--- ¡ESTO ES CLAVE! */
-    display: none; /* Oculto por defecto */
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 9999 !important;
+    display: none;
     justify-content: center;
     align-items: center;
 }
@@ -394,40 +391,34 @@ body {
     background-color: #1f8f4d !important;
     border-color: #1f8f4d !important;
 }
-/* =========================================
-   ESTILOS PARA EL MODAL DE EDICIÓN
-   (Pega esto al final de style.css)
-   ========================================= */
+ 
 
-/* 1. Fondo Oscuro y Posición */
 .modal-overlay {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Un poco más oscuro */
-    backdrop-filter: blur(3px); /* Efecto borroso elegante en el fondo */
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
     z-index: 9999 !important;
     display: none;
     justify-content: center;
     align-items: center;
 }
 
-/* 2. La Caja Blanca del Modal */
 .modal-content {
     background: #ffffff;
-    width: 450px;        /* Ancho fijo para que no se vea flaco */
+    width: 450px;
     max-width: 90%;
-    padding: 30px;       /* Espacio interno generoso */
-    border-radius: 12px; /* Bordes redondeados modernos */
+    padding: 30px;
+    border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     position: relative;
     font-family: Arial, sans-serif;
-    display: flex;       /* Para organizar header y body */
+    display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-/* 3. Header del Modal (Título y X) */
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -453,18 +444,17 @@ body {
 }
 
 .modal-cerrar-btn:hover {
-    color: #e74c3c; /* Rojo al pasar el mouse */
+    color: #e74c3c;
 }
 
-/* 4. Área de Búsqueda (Input + Botón lado a lado) */
 .escaner-modal-container {
-    display: flex;       /* Alineación horizontal */
-    gap: 10px;           /* Separación entre input y botón */
+    display: flex;
+    gap: 10px;
     margin-bottom: 20px;
 }
 
 #modal-sku-input {
-    flex-grow: 1;        /* Que ocupe todo el espacio posible */
+    flex-grow: 1;
     padding: 12px;
     border: 2px solid #e0e0e0;
     border-radius: 6px;
@@ -474,7 +464,7 @@ body {
 }
 
 #modal-sku-input:focus {
-    border-color: #2196F3; /* Azul al escribir */
+    border-color: #2196F3;
 }
 
 #modal-buscar-sku {
@@ -487,18 +477,16 @@ body {
     font-weight: bold;
 }
 
-/* 5. Formulario de Edición (Donde están los campos desordenados) */
 #modal-form-editar {
-    display: flex;         /* Usamos Flexbox para ordenar */
-    flex-direction: column;/* Uno debajo del otro */
-    gap: 15px;             /* Separación vertical entre campos */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     background-color: #f9f9f9;
     padding: 20px;
     border-radius: 8px;
     border: 1px solid #eee;
 }
 
-/* Título del producto encontrado */
 #modal-titulo-producto {
     text-align: center;
     margin: 0 0 10px 0;
@@ -514,9 +502,9 @@ body {
     border: 1px solid #27ae60 !important;
     padding: 12px 16px !important;
     width: 60%;
-    margin: 10px auto 0; /* centra horizontalmente */
+    margin: 10px auto 0;
     display: block;
-    border-radius: 6px; /* rectángulo con bordes suaves */
+    border-radius: 6px;
     text-transform: uppercase;
     font-weight: bold;
     text-align: center;
@@ -526,32 +514,49 @@ body {
     border-color: #1f8f4d !important;
 }
 
+.btn-guardar-user {
+    background-color: #27ae60 !important;
+    color: #fff !important;
+    border: 1px solid #27ae60 !important;
+    padding: 12px 16px !important;
+    width: 60%;
+    margin: 10px auto 0;
+    display: block;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+.btn-guardar-user:hover {
+    background-color: #1f8f4d !important;
+    border-color: #1f8f4d !important;
+}
+
 
 #modal-form-editar label {
-    font-size: 1rem;       /* Letra un poco más grande */
-    font-weight: bold;     /* Negrita para que resalte */
-    color: #000000;        /* Negro puro para máximo contraste */
-    margin-bottom: 8px;    /* Espacio POSITIVO hacia abajo (antes era -10px) */
-    display: block;        /* Asegura que ocupe su propia línea */
-    text-transform: uppercase; /* Opcional: pone los títulos en mayúscula */
+    font-size: 1rem;
+    font-weight: bold;
+    color: #000000;
+    margin-bottom: 8px;
+    display: block;
+    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 #modal-form-editar input {
-    margin-bottom: 15px;   /* Espacio extra después de cada cuadro */
-    padding: 12px;         /* Relleno cómodo */
+    margin-bottom: 15px;
+    padding: 12px;
     border: 1px solid #ccc;
     border-radius: 5px;
     width: 100%;           /* Ancho total */
     box-sizing: border-box;
 }
 
-/* Botón Guardar (El que se genera con JS) */
 #btn-guardar-dinamico {
     margin-top: 10px;
     padding: 12px;
     font-size: 1.1rem;
-    background-color: #27ae60 !important; /* Verde bonito */
+    background-color: #27ae60 !important;
     border-radius: 6px;
     transition: background 0.3s;
 }
@@ -559,7 +564,6 @@ body {
 #btn-guardar-dinamico:hover {
     background-color: #219150 !important;
 }
-/* ESTILOS PARA REPORTES */
 .input-fecha {
     padding: 10px;
     border: 1px solid #ccc;
@@ -580,40 +584,36 @@ body {
 #tabla-reportes tr:hover {
     background-color: #f1f1f1;
 }
-/* ESTILO BOTÓN FLOTANTE ADMIN */
 .btn-flotante-admin {
-    position: fixed;          /* Se queda fijo en la pantalla */
-    bottom: 30px;             /* Separación desde abajo */
-    right: 30px;              /* Separación desde la derecha */
-    
-    background-color: #29542e; /* Verde oscuro elegante */
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+
+    background-color: #29542e;
     color: white;
     border: none;
     padding: 15px 25px;
-    border-radius: 50px;      /* Bordes muy redondos */
+    border-radius: 50px;
     font-size: 1rem;
     font-weight: bold;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Sombra para que "flote" */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     cursor: pointer;
-    z-index: 9999;            /* Siempre encima de todo */
+    z-index: 9999;
     transition: transform 0.2s, background 0.3s;
 }
 
 .btn-flotante-admin:hover {
-    background-color: #27353e; /* Más oscuro al pasar el mouse */
-    transform: scale(1.05);   /* Efecto al pasar el mouse */
+    background-color: #27353e;
+    transform: scale(1.05);
 }
 
-/* --- Estilos para Botones de Icono --- */
-
-/* Botón de Recarga Redondo */
 .btn-icon-reload {
     background: #3498db;
     color: white;
     border: none;
     width: 40px;
     height: 40px;
-    border-radius: 50%; /* Lo hace redondo */
+    border-radius: 50%;
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
@@ -641,7 +641,6 @@ body {
 }
 .btn-editar-tabla:hover { background: #d4ac0d; }
 
-/* ESTILO BOTÓN FLOTANTE */
 .btn-flotante {
     position: fixed;
     bottom: 30px;
@@ -655,20 +654,19 @@ body {
     border: none;
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     cursor: pointer;
-    z-index: 10000; /* Para que esté encima de todo */
+    z-index: 10000;
     transition: transform 0.2s, background-color 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 5px; /* Pequeño ajuste visual para centrar el + */
+    padding-bottom: 5px;
 }
 
 .btn-flotante:hover {
-    transform: scale(1.1) rotate(90deg); /* Efecto al pasar el mouse */
+    transform: scale(1.1) rotate(90deg);
     background-color: #27353e;
 }
 
-/* Botón 'Ir a Caja' en Sidebar */
 .btn-ir-caja {
     background-color: #29542e !important;
     color: #ffffff !important;
@@ -682,7 +680,6 @@ body {
     background-color: #27353e !important;
 }
 
-/* Botón 'Descargar Excel' en Reportes */
 .btn-excel-dark {
     background-color: #29542e;
     color: #ffffff;
@@ -700,7 +697,6 @@ body {
 .btn-flotante:active {
     transform: scale(0.9);
 }
-/* Estilos para botones de método de pago */
 .btn-metodo-pago {
     padding: 18px 25px;
     font-size: 1.3rem;

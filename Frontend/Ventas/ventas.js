@@ -10,25 +10,18 @@ window.onload = function () {
 
     document.getElementById('bienvenida-usuario').innerText = `Hola, ${usuario.nombre || usuario.email}`;
 
-    // ==========================================
-    // LÓGICA PARA EL BOTÓN "VOLVER AL DASHBOARD"
-    // ==========================================
     const rol = (usuario.rol || usuario.role || '').toLowerCase();
 
     if (rol === 'admin' || rol === 'administrador') {
         const btnVolver = document.getElementById('btn-volver-dash');
         if (btnVolver) {
-            btnVolver.style.display = 'block'; // Lo hacemos visible
+            btnVolver.style.display = 'block'; 
 
             btnVolver.addEventListener('click', () => {
-                // Sube un nivel (..) y entra a Dashboard
                 window.location.href = '../Dashboard/';
             });
         }
     }
-    // ==========================================
-
-    // Logout
     document.getElementById('btn-logout').addEventListener('click', () => {
         sessionStorage.removeItem('usuarioLogueado');
         window.location.href = '../index.html';
@@ -43,7 +36,6 @@ function iniciarVentas(usuario) {
     const lista = document.getElementById('lista-productos-escaneados');
     const totalEl = document.getElementById('venta-total');
 
-    // Funciones globales para controles de cantidad
     window.cambiarCantidad = function (index, delta) {
         if (ventaActual[index]) {
             ventaActual[index].cantidad += delta;
@@ -61,7 +53,6 @@ function iniciarVentas(usuario) {
         }
     };
 
-    // Escaner
     escaner.focus();
     escaner.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
@@ -118,7 +109,6 @@ function iniciarVentas(usuario) {
         totalEl.innerText = formatearPeso(total);
     }
 
-    // Botones
     const btnCantidad = document.getElementById('btn-buscar');
     if (btnCantidad) {
         btnCantidad.addEventListener('click', () => {
@@ -126,7 +116,6 @@ function iniciarVentas(usuario) {
                 const c = prompt("Ingrese la cantidad a agregar:");
                 const n = parseInt(c, 10);
                 if (!isNaN(n) && n > 0) {
-                    // Multiplica la cantidad del último producto por el número ingresado
                     ventaActual[ventaActual.length - 1].cantidad *= n;
                     actualizar();
                 }
@@ -138,13 +127,11 @@ function iniciarVentas(usuario) {
         if (confirm("¿Limpiar?")) { ventaActual = []; actualizar(); escaner.focus(); }
     });
 
-    // Modal de método de pago
     const modalMetodoPago = document.getElementById('modal-metodo-pago');
     const cerrarModalPago = document.getElementById('cerrar-modal-pago');
     const totalACobrar = document.getElementById('total-a-cobrar');
     const botonesMetodoPago = document.querySelectorAll('.btn-metodo-pago');
 
-    // Abrir modal al hacer clic en COBRAR
     document.getElementById('btn-cobrar').addEventListener('click', () => {
         if (ventaActual.length === 0) {
             alert("No hay productos en la venta");
@@ -154,23 +141,23 @@ function iniciarVentas(usuario) {
         const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta'] || 0) * i.cantidad), 0);
         totalACobrar.innerText = `Total: ${formatearPeso(totalFinal)}`;
 
-        // Mostrar modal
+
         modalMetodoPago.style.display = 'flex';
     });
 
-    // Cerrar modal
+
     cerrarModalPago.addEventListener('click', () => {
         modalMetodoPago.style.display = 'none';
     });
 
-    // Cerrar modal al hacer clic fuera
+
     modalMetodoPago.addEventListener('click', (e) => {
         if (e.target === modalMetodoPago) {
             modalMetodoPago.style.display = 'none';
         }
     });
 
-    // Procesar venta con el método de pago seleccionado
+
     botonesMetodoPago.forEach(btn => {
         btn.addEventListener('click', async () => {
             const metodoPago = btn.getAttribute('data-metodo');

@@ -1,38 +1,22 @@
 <?php
-// Backend/index.php
 
-// --- MODO DEBUG ACTIVADO ---
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// ... (El resto del código sigue igual abajo) ...
-// Backend/index.php
-
-
-// --- MODO DEBUG (Desactívalo en producción) ---
-ini_set('display_errors', 0); // Lo ponemos en 0 para no romper el JSON con warnings
-ini_set('display_startup_errors', 0);
-error_reporting(E_ALL);
-
-// 1. HEADERS CORS (Obligatorios)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json; charset=utf-8');
 
-// Manejo de preflight
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200); exit;
 }
 
-// 2. CONEXIÓN MYSQL
+
 require_once __DIR__ . '/Config/db.php'; 
 
-// 3. PROCESAMIENTO URL
+
 $ruta = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$ruta = preg_replace('#^/api#', '', $ruta); // Quita /api si existe
-$ruta = preg_replace('#^/Backend#', '', $ruta); // Quita /Backend si existe (ajuste para XAMPP)
+$ruta = preg_replace('#^/api#', '', $ruta); 
+$ruta = preg_replace('#^/Backend#', '', $ruta); 
 $metodo = $_SERVER['REQUEST_METHOD'];
 $datos = json_decode(file_get_contents('php://input'), true) ?? [];
 
@@ -40,7 +24,6 @@ $ruta_limpia = trim($ruta, '/');
 $partes = explode('/', $ruta_limpia);
 $entidad = $partes[0] ?? ''; 
 
-// 4. RUTEO
 switch ($entidad) {
     case 'productos':   require __DIR__ . '/Productos.php'; break;
     case 'ventas':      require __DIR__ . '/Ventas.php'; break;
@@ -53,7 +36,6 @@ switch ($entidad) {
     case 'notificaciones': require __DIR__ . '/Notificaciones.php'; break;
 
     default:
-        // Si entras a la raíz, no da error, solo saluda
         if ($entidad === '' || $entidad === 'index.php') {
             echo json_encode(['mensaje' => 'API MySQL Online 🟢']);
         } else {

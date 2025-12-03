@@ -1,8 +1,3 @@
-// ==========================================
-// LOGIN.JS - LÓGICA DE ACCESO CORREGIDA
-// ==========================================
-
-// Asegúrate que este puerto coincida con tu backend (XAMPP suele ser 80, Docker 8000 u 8080)
 const API_URL = 'http://localhost:8000'; 
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -13,7 +8,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const msgError = document.getElementById('error-mensaje'); 
     const btn = document.getElementById('login-boton');
 
-    // Feedback visual de carga
     const textoOriginal = btn.innerText;
     btn.innerText = "Verificando...";
     btn.disabled = true;
@@ -32,11 +26,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         console.log("Respuesta del servidor:", data);
 
         if (res.ok) {
-            // 1. Guardar datos del usuario
             sessionStorage.setItem('usuarioLogueado', JSON.stringify(data.usuario));
 
-            // 2. LÓGICA CRÍTICA DE ROL
-            // Obtenemos el rol, quitamos espacios y convertimos a minúscula
             const rolCrudo = data.usuario.rol;
             const rol = (rolCrudo || '').trim().toLowerCase();
 
