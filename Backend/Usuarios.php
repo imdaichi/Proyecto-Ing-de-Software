@@ -23,11 +23,22 @@ if ($metodo === 'POST') {
     $id = $datos['id_db'] ?? null;
     $nombre = $datos['nombre'] ?? '';
     $rol = $datos['rol'] ?? 'vendedor';
+    $email = $datos['email'] ?? null;
+    $contrasena = $datos['contrasena'] ?? null;
 
     try {
         if ($id) {
+            // Actualizar existente
             $stmt = $pdo->prepare("UPDATE usuarios SET nombre=?, rol=? WHERE id=?");
             $stmt->execute([$nombre, $rol, $id]);
+        } else {
+            // Crear nuevo
+            if (!$email) { throw new Exception('Email obligatorio'); }
+            if (!$contrasena) { throw new Exception('Contraseña obligatoria'); }
+            // Si viene contraseña, hash, de lo contrario null
+            $hash = password_hash($contrasena, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, rol, password) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$nombre, $email, $rol, $hash]);
         }
         echo json_encode(['mensaje' => 'Guardado']);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => $e->getMessage()]); }

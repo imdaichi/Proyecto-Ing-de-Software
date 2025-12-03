@@ -42,6 +42,24 @@ function iniciarVentas(usuario) {
     const escaner = document.getElementById('escaner-sku');
     const lista = document.getElementById('lista-productos-escaneados');
     const totalEl = document.getElementById('venta-total');
+    
+    // Funciones globales para controles de cantidad
+    window.cambiarCantidad = function(index, delta) {
+        if (ventaActual[index]) {
+            ventaActual[index].cantidad += delta;
+            if (ventaActual[index].cantidad <= 0) {
+                ventaActual.splice(index, 1);
+            }
+            actualizar();
+        }
+    };
+    
+    window.eliminarItem = function(index) {
+        if (confirm('¿Eliminar este producto?')) {
+            ventaActual.splice(index, 1);
+            actualizar();
+        }
+    };
 
     // Escaner
     escaner.focus();
@@ -72,21 +90,50 @@ function iniciarVentas(usuario) {
     function actualizar() {
         lista.innerHTML = '';
         let total = 0;
-        ventaActual.forEach(item => {
+        ventaActual.forEach((item, index) => {
             const p = parseFloat(item.producto['Precio Venta'] || 0);
             total += p * item.cantidad;
-            lista.innerHTML += `<div class="item-producto"><strong>${item.producto.Titulo}</strong> x${item.cantidad}<div style="float:right;">${formatearPeso(p*item.cantidad)}</div></div>`;
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'item-producto';
+            itemDiv.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;';
+            
+            itemDiv.innerHTML = `
+                <div style="flex:1;">
+                    <strong>${item.producto.Titulo}</strong>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="display:flex; flex-direction:column; gap:0;">
+                        <button onclick="cambiarCantidad(${index}, 1)" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:2px; line-height:1;" title="Aumentar">⬆️</button>
+                        <button onclick="cambiarCantidad(${index}, -1)" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:2px; line-height:1;" title="Disminuir">⬇️</button>
+                    </div>
+                    <span style="min-width:40px; text-align:center; font-weight:bold;">x${item.cantidad}</span>
+                </div>
+                <div style="min-width:100px; text-align:right; font-weight:bold;">${formatearPeso(p*item.cantidad)}</div>
+                <button onclick="eliminarItem(${index})" style="background:none; border:none; cursor:pointer; font-size:1.3rem; padding:5px; margin-left:10px;" title="Eliminar">🗑️</button>
+            `;
+            
+            lista.appendChild(itemDiv);
         });
         totalEl.innerText = formatearPeso(total);
     }
 
     // Botones
-    document.getElementById('btn-buscar').addEventListener('click', () => {
-        if(ventaActual.length){ const c=prompt("Cantidad:"); if(c>0){ventaActual[ventaActual.length-1].cantidad=parseInt(c); actualizar();}}
-    });
-    document.getElementById('btn-producto').addEventListener('click', () => {
-        if(ventaActual.length){ ventaActual.pop(); actualizar(); }
-    });
+    const btnCantidad = document.getElementById('btn-buscar');
+    if (btnCantidad) {
+        btnCantidad.addEventListener('click', () => {
+            if (ventaActual.length) {
+                const c = prompt("Ingrese la cantidad a agregar:");
+                const n = parseInt(c, 10);
+                if (!isNaN(n) && n > 0) {
+                    // Multiplica la cantidad del último producto por el número ingresado
+                    ventaActual[ventaActual.length - 1].cantidad *= n;
+                    actualizar();
+                }
+            }
+        });
+    }
+
     document.getElementById('btn-cancelar').addEventListener('click', () => {
         if(confirm("¿Limpiar?")) { ventaActual=[]; actualizar(); escaner.focus(); }
     });

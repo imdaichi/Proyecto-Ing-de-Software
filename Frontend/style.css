@@ -112,6 +112,24 @@ body {
     border-left: 1px solid #ddd; 
 }
 
+/* Ajustes de tamaño y centrado para botones de venta */
+.columna-acciones .accion-btn {
+    padding: 12px;            /* más pequeño */
+    font-size: 1.2rem;        /* letras un poco más grandes */
+    text-transform: uppercase;/* texto en mayúsculas */
+    text-align: center;       /* centrar texto dentro del botón */
+    width: 85%;               /* no ocupar todo el ancho para verse más centrado */
+    align-self: center;       /* centrar el botón dentro de la columna */
+}
+
+/* Mantener estilo peligro con nuevos tamaños */
+.columna-acciones .accion-btn.accion-peligro {
+    padding: 12px;
+    font-size: 1.2rem;        /* letras un poco más grandes */
+    text-transform: uppercase;/* texto en mayúsculas */
+    width: 85%;
+}
+
 .panel-header {
     display: flex; 
     justify-content: space-between; 
@@ -338,6 +356,44 @@ body {
 #modal-guardar-cambios {
     font-size: 1.1rem;
 }
+
+/* Botón Actualizar Proveedor centrado, rectángulo naranja */
+.btn-actualizar-prov {
+    background-color: #e67e22 !important;
+    color: #fff !important;
+    border: 1px solid #e67e22 !important;
+    padding: 12px 18px !important;
+    width: 60%;
+    margin: 10px auto 0;
+    display: block;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+.btn-actualizar-prov:hover {
+    background-color: #d35400 !important;
+    border-color: #d35400 !important;
+}
+
+/* Botón Guardar Nuevo Proveedor con recuadro verde centrado */
+.btn-guardar-nuevo-prov {
+    background-color: #27ae60 !important;
+    color: #fff !important;
+    border: 1px solid #27ae60 !important;
+    padding: 12px 18px !important;
+    width: 60%;
+    margin: 10px auto 0;
+    display: block;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+.btn-guardar-nuevo-prov:hover {
+    background-color: #1f8f4d !important;
+    border-color: #1f8f4d !important;
+}
 /* =========================================
    ESTILOS PARA EL MODAL DE EDICIÓN
    (Pega esto al final de style.css)
@@ -452,6 +508,23 @@ body {
     border-bottom: 1px solid #ddd;
     padding-bottom: 10px;
 }
+.btn-crear-user {
+    background-color: #27ae60 !important;
+    color: #fff !important;
+    border: 1px solid #27ae60 !important;
+    padding: 12px 16px !important;
+    width: 60%;
+    margin: 10px auto 0; /* centra horizontalmente */
+    display: block;
+    border-radius: 6px; /* rectángulo con bordes suaves */
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+.btn-crear-user:hover {
+    background-color: #1f8f4d !important;
+    border-color: #1f8f4d !important;
+}
 
 
 #modal-form-editar label {
@@ -513,7 +586,7 @@ body {
     bottom: 30px;             /* Separación desde abajo */
     right: 30px;              /* Separación desde la derecha */
     
-    background-color: #2c3e50; /* Color oscuro elegante */
+    background-color: #29542e; /* Verde oscuro elegante */
     color: white;
     border: none;
     padding: 15px 25px;
@@ -527,7 +600,7 @@ body {
 }
 
 .btn-flotante-admin:hover {
-    background-color: #34495e;
+    background-color: #27353e; /* Más oscuro al pasar el mouse */
     transform: scale(1.05);   /* Efecto al pasar el mouse */
 }
 
@@ -576,7 +649,7 @@ body {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: #8e44ad; /* Color Morado a juego con importar */
+    background-color: #29542e;
     color: white;
     font-size: 35px;
     border: none;
@@ -592,7 +665,36 @@ body {
 
 .btn-flotante:hover {
     transform: scale(1.1) rotate(90deg); /* Efecto al pasar el mouse */
-    background-color: #9b59b6;
+    background-color: #27353e;
+}
+
+/* Botón 'Ir a Caja' en Sidebar */
+.btn-ir-caja {
+    background-color: #29542e !important;
+    color: #ffffff !important;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.btn-ir-caja:hover {
+    background-color: #27353e !important;
+}
+
+/* Botón 'Descargar Excel' en Reportes */
+.btn-excel-dark {
+    background-color: #29542e;
+    color: #ffffff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.btn-excel-dark:hover {
+    background-color: #27353e;
 }
 
 .btn-flotante:active {

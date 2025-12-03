@@ -31,6 +31,12 @@ window.verSeccion = function(id) {
     if(sec) sec.classList.add('active');
     if(nav) nav.classList.add('active');
 
+    // Control del botón flotante - solo visible en Bitácora
+    const btnFlotante = document.querySelector('.btn-flotante');
+    if(btnFlotante) {
+        btnFlotante.style.display = (id === 'prod') ? 'flex' : 'none';
+    }
+
     // Cargas automáticas
     if(id === 'home') cargarResumenDashboard();
     if(id === 'prod') cargarMovimientos();
@@ -51,8 +57,7 @@ async function cargarResumenDashboard() {
         document.getElementById('kpi-top-prod').innerText = data.top_producto || 'Sin ventas';
         document.getElementById('kpi-valor-inv').innerText = "$" + (data.valor_inventario || 0).toLocaleString();
         
-        const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        document.getElementById('kpi-mes-actual').innerText = meses[new Date().getMonth()];
+        // Eliminado KPI de Mes Actual
 
         const ctx = document.getElementById('graficoVentas').getContext('2d');
         const etiquetas = Object.keys(data.ventas_mes); 
@@ -67,8 +72,8 @@ async function cargarResumenDashboard() {
                 datasets: [{
                     label: 'Ventas Totales ($)',
                     data: valores,
-                    backgroundColor: 'rgba(142, 68, 173, 0.6)', // Morado
-                    borderColor: 'rgba(142, 68, 173, 1)',
+                    backgroundColor: 'rgba(41, 84, 46, 0.6)', // Verde #29542e con transparencia
+                    borderColor: '#29542e',
                     borderWidth: 1,
                     borderRadius: 5
                 }]
@@ -173,7 +178,8 @@ if (btnReporte) {
             const data = await res.json();
             
             document.getElementById('resumen').style.display='block';
-            document.getElementById('txt-monto').innerText = "$" + (data.total_monto||0);
+            const totalCLP = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseInt(data.total_monto || 0));
+            document.getElementById('txt-monto').innerText = totalCLP;
             
             const tbody = document.getElementById('tabla-rep');
             tbody.innerHTML='';
@@ -210,7 +216,7 @@ if(btnExcel) {
         e.preventDefault();
         const ini=document.getElementById('f-ini').value, fin=document.getElementById('f-fin').value;
         if(!ini||!fin) return;
-        btnExcel.innerText="⏳..."; btnExcel.disabled=true;
+        btnExcel.innerText="Descargando…"; btnExcel.disabled=true;
         
         try {
             const res = await fetch(`${API_URL}/reportes?inicio=${ini}&fin=${fin}`);
@@ -242,7 +248,7 @@ if(btnExcel) {
             setTimeout(()=>{ document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 1000);
 
         } catch(e){ console.error(e); }
-        finally { btnExcel.innerText="📥 Descargar Excel"; btnExcel.disabled=false; }
+        finally { btnExcel.innerText="Descargar Excel"; btnExcel.disabled=false; }
     };
 }
 
@@ -284,6 +290,30 @@ window.eliminarUsuario = async function(id, email) {
     await fetch(`${API_URL}/usuarios?id=${id}`, { method:'DELETE' });
     cargarUsuarios();
 };
+
+// Crear usuario (similar a Proveedores)
+document.getElementById('btn-nuevo-user')?.addEventListener('click', () => {
+    document.getElementById('modal-crear-usuario').style.display = 'flex';
+});
+document.getElementById('btn-guardar-nuevo-user')?.addEventListener('click', async () => {
+    const nombre = document.getElementById('new-user-nombre').value.trim();
+    const email = document.getElementById('new-user-email').value.trim();
+    const rol = document.getElementById('new-user-rol').value;
+    const contrasena = document.getElementById('new-user-pass')?.value || null;
+    if (!nombre || !email) return alert('Nombre y Email son obligatorios');
+    if (!contrasena || contrasena.length < 6) return alert('La contraseña es obligatoria y debe tener al menos 6 caracteres');
+    try {
+        const payload = { nombre, email, rol, contrasena };
+        const res = await fetch(`${API_URL}/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+        if (!res.ok) {
+            const e = await res.json();
+            return alert('Error: ' + (e.error || 'No se pudo crear'));
+        }
+        alert('Usuario creado');
+        cerrarModal('modal-crear-usuario');
+        cargarUsuarios();
+    } catch (e) { alert('Error de conexión'); }
+});
 
 
 // ==========================================
@@ -395,9 +425,17 @@ document.getElementById('btn-guardar-prod-edit')?.addEventListener('click', asyn
 // 10. ACCIÓN BOTÓN FLOTANTE (+)
 // ==========================================
 window.accionBotonFlotante = function() {
-    const sku = prompt("🔤 Ingresa el SKU exacto del producto a editar:");
-    if (sku && sku.trim() !== "") {
-        // Ahora sí existe la función abrirModalEditarProducto
-        abrirModalEditarProducto(sku.trim());
-    }
+    document.getElementById('modal-buscar-prod').style.display = 'flex';
+    document.getElementById('buscar-prod-sku').value = '';
+    document.getElementById('buscar-prod-sku').focus();
 };
+
+document.getElementById('btn-buscar-prod-modal')?.addEventListener('click', () => {
+    const sku = document.getElementById('buscar-prod-sku').value.trim();
+    if (sku) {
+        cerrarModal('modal-buscar-prod');
+        abrirModalEditarProducto(sku);
+    } else {
+        alert("Ingresa un SKU válido");
+    }
+});

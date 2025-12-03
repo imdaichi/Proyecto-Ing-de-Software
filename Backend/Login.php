@@ -11,8 +11,18 @@ if ($metodo === 'POST') {
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        // Comparación simple (Para producción usa password_verify)
-        if ($user && $user['password'] === $pass) {
+        // Verificación segura: soporta hashes nuevos y contraseñas legadas en texto plano
+        $ok = false;
+        if ($user) {
+            $hash = $user['password'] ?? '';
+            if (!empty($hash)) {
+                // Intentar verificar como hash moderno
+                if (password_verify($pass, $hash)) { $ok = true; }
+                // Compatibilidad: si alguna cuenta antigua guarda texto plano
+                else if ($hash === $pass) { $ok = true; }
+            }
+        }
+        if ($ok) {
             unset($user['password']); // No enviar pass al frontend
             
             // Adaptar ID para compatibilidad con JS
