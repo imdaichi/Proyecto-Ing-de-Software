@@ -1,0 +1,13 @@
+# Archivos de configuración con credenciales sensibles
+Backend/Config/db.php
+Backend/Config/email.php
+Backend/firebase-credentials.json
+
+# Vendor de Composer
+Backend/vendor/
+
+# Archivos de datos
+*.csv
+
+# Configuración del editor
+.vscode/

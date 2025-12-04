@@ -1,0 +1,27 @@
+<?php
+// Backend/Config/email.php.example
+// Copia este archivo como email.php y configura tus credenciales
+
+// Configuración de Email para CIMEHIJO usando SendGrid
+
+// SendGrid es un servicio profesional de envío de emails
+// Gratis hasta 100 emails/día - Perfecto para producción
+// Registro: https://signup.sendgrid.com/
+
+// INSTRUCCIONES:
+// 1. Regístrate en: https://signup.sendgrid.com/
+// 2. Verifica tu email
+// 3. Ve a Settings → API Keys → Create API Key
+// 4. Copia tu API Key y pégala abajo
+
+// API Key de SendGrid
+// CAMBIA ESTO por tu API Key real
+define('SENDGRID_API_KEY', 'TU_API_KEY_AQUI');
+
+// Email del remitente (debe estar verificado en SendGrid)
+define('MAIL_FROM_EMAIL', 'tu-email@ejemplo.com');
+define('MAIL_FROM_NAME', 'CIMEHIJO - Sistema de Inventario');
+
+// Configuración general
+define('MAIL_CHARSET', 'UTF-8');
+?>
