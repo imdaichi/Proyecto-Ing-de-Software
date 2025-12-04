@@ -288,7 +288,20 @@ function iniciarSistemaVentas(usuario) {
         escanerInput.disabled = true;
         try {
             const res = await fetch(`${API_URL}/productos/${encodeURIComponent(sku)}`);
-            if(!res.ok) throw new Error("No encontrado");
+            
+            // Verificar si la respuesta es JSON válido
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await res.text();
+                console.error("Respuesta no es JSON:", text);
+                throw new Error("El servidor no devolvió JSON válido");
+            }
+            
+            if(!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "No encontrado");
+            }
+            
             const prod = await res.json();
             
             const existe = ventaActual.find(i => i.sku === (prod.id_sku_en_db || sku));
@@ -298,7 +311,11 @@ function iniciarSistemaVentas(usuario) {
             actualizarPantalla();
             escanerInput.value = '';
             escanerInput.focus();
-        } catch(e) { alert(e.message); escanerInput.select(); } 
+        } catch(e) { 
+            console.error("Error en buscarProductoVenta:", e);
+            alert(e.message); 
+            escanerInput.select(); 
+        } 
         finally { escanerInput.disabled = false; escanerInput.focus(); }
     }
 

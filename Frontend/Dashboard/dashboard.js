@@ -23,6 +23,18 @@ document.getElementById('btn-logout')?.addEventListener('click', ()=>{
 
 window.cerrarModal = function(id) { document.getElementById(id).style.display = 'none'; };
 
+// Función para mostrar modal de éxito
+function mostrarExito(mensaje) {
+    const modal = document.getElementById('modal-exito');
+    const mensajeP = document.getElementById('mensaje-exito');
+    mensajeP.textContent = mensaje;
+    modal.style.display = 'flex';
+}
+
+document.getElementById('btn-cerrar-exito')?.addEventListener('click', function() {
+    document.getElementById('modal-exito').style.display = 'none';
+});
+
 let cargadoNotif = false;
 window.verSeccion = function(id) {
     const tabs = ['home', 'prod', 'rep', 'users', 'prov', 'notif'];
@@ -105,9 +117,111 @@ cargarBadgeNotificaciones();
 // 4. BITÁCORA DE MOVIMIENTOS
 // ==========================================
 let movimientosData = [];
+let movimientosDataFiltrados = [];
 let movimientosPaginaActual = 1;
 const MOVS_POR_PAGINA = 10;
 let skuFiltroActual = null;
+let ordenActual = { columna: 'fecha', direccion: 'desc' };
+
+// Función para aplicar filtros
+function aplicarFiltrosMovimientos() {
+    const filtroTipo = document.getElementById('filtro-tipo')?.value.toLowerCase();
+    const filtroUsuario = document.getElementById('filtro-usuario')?.value.toLowerCase();
+    const filtroFechaInicio = document.getElementById('filtro-fecha-inicio')?.value;
+    const filtroFechaFin = document.getElementById('filtro-fecha-fin')?.value;
+    
+    movimientosDataFiltrados = movimientosData.filter(m => {
+        // Filtro por tipo
+        if (filtroTipo && !m.tipo?.toLowerCase().includes(filtroTipo)) return false;
+        
+        // Filtro por usuario
+        if (filtroUsuario && !m.usuario?.toLowerCase().includes(filtroUsuario)) return false;
+        
+        // Filtro por fecha inicio
+        if (filtroFechaInicio) {
+            const fechaMovimiento = new Date(m.fecha).setHours(0,0,0,0);
+            const fechaInicio = new Date(filtroFechaInicio).setHours(0,0,0,0);
+            if (fechaMovimiento < fechaInicio) return false;
+        }
+        
+        // Filtro por fecha fin
+        if (filtroFechaFin) {
+            const fechaMovimiento = new Date(m.fecha).setHours(0,0,0,0);
+            const fechaFin = new Date(filtroFechaFin).setHours(0,0,0,0);
+            if (fechaMovimiento > fechaFin) return false;
+        }
+        
+        return true;
+    });
+    
+    movimientosPaginaActual = 1;
+    renderMovimientosPage();
+}
+
+// Función para ordenar movimientos
+window.ordenarMovimientos = function(columna) {
+    // Actualizar dirección de ordenamiento
+    if (ordenActual.columna === columna) {
+        ordenActual.direccion = ordenActual.direccion === 'asc' ? 'desc' : 'asc';
+    } else {
+        ordenActual.columna = columna;
+        ordenActual.direccion = 'asc';
+    }
+    
+    // Actualizar indicadores visuales
+    ['fecha', 'producto', 'tipo', 'usuario'].forEach(col => {
+        const span = document.getElementById(`sort-${col}`);
+        if (span) {
+            if (col === columna) {
+                span.textContent = ordenActual.direccion === 'asc' ? '↑' : '↓';
+                span.style.color = '#29542e';
+            } else {
+                span.textContent = '⇅';
+                span.style.color = '#999';
+            }
+        }
+    });
+    
+    // Ordenar los datos
+    const dataOrdenar = movimientosDataFiltrados.length > 0 ? movimientosDataFiltrados : movimientosData;
+    
+    dataOrdenar.sort((a, b) => {
+        let valorA, valorB;
+        
+        switch(columna) {
+            case 'fecha':
+                valorA = new Date(a.fecha).getTime();
+                valorB = new Date(b.fecha).getTime();
+                break;
+            case 'producto':
+                valorA = (a.sku || '').toLowerCase();
+                valorB = (b.sku || '').toLowerCase();
+                break;
+            case 'tipo':
+                valorA = (a.tipo || '').toLowerCase();
+                valorB = (b.tipo || '').toLowerCase();
+                break;
+            case 'usuario':
+                valorA = (a.usuario || '').toLowerCase();
+                valorB = (b.usuario || '').toLowerCase();
+                break;
+            default:
+                return 0;
+        }
+        
+        if (valorA < valorB) return ordenActual.direccion === 'asc' ? -1 : 1;
+        if (valorA > valorB) return ordenActual.direccion === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    if (movimientosDataFiltrados.length > 0) {
+        movimientosDataFiltrados = [...dataOrdenar];
+    } else {
+        movimientosData = [...dataOrdenar];
+    }
+    
+    renderMovimientosPage();
+};
 
 async function cargarMovimientos(skuFiltro = null, page = 1) {
     const tbody = document.getElementById('tabla-mov-body');
@@ -137,6 +251,7 @@ async function cargarMovimientos(skuFiltro = null, page = 1) {
         let url = `${API_URL}/movimientos` + (skuFiltro ? `?sku=${encodeURIComponent(skuFiltro)}` : '');
         const resMov = await fetch(url);
         movimientosData = await resMov.json();
+        movimientosDataFiltrados = [];
 
         tbody.innerHTML = '';
         if (!Array.isArray(movimientosData) || movimientosData.length === 0) {
@@ -156,12 +271,13 @@ async function cargarMovimientos(skuFiltro = null, page = 1) {
 
 function renderMovimientosPage() {
     const tbody = document.getElementById('tabla-mov-body');
-    const total = movimientosData.length;
+    const dataRender = movimientosDataFiltrados.length > 0 ? movimientosDataFiltrados : movimientosData;
+    const total = dataRender.length;
     const totalPages = Math.ceil(total / MOVS_POR_PAGINA) || 1;
     if (movimientosPaginaActual > totalPages) movimientosPaginaActual = totalPages;
     const start = (movimientosPaginaActual - 1) * MOVS_POR_PAGINA;
     const end = Math.min(start + MOVS_POR_PAGINA, total);
-    const pageItems = movimientosData.slice(start, end);
+    const pageItems = dataRender.slice(start, end);
 
     tbody.innerHTML = '';
     pageItems.forEach(m => {
@@ -231,8 +347,27 @@ document.getElementById('btn-buscar')?.addEventListener('click', () => {
     if(sku) cargarMovimientos(sku, 1); else alert("Ingresa SKU");
 });
 document.getElementById('btn-ver-todos')?.addEventListener('click', () => {
-    document.getElementById('sku-buscar').value = ''; cargarMovimientos(null, 1);
+    document.getElementById('sku-buscar').value = '';
+    document.getElementById('filtro-tipo').value = '';
+    document.getElementById('filtro-usuario').value = '';
+    document.getElementById('filtro-fecha-inicio').value = '';
+    document.getElementById('filtro-fecha-fin').value = '';
+    cargarMovimientos(null, 1);
 });
+
+// Event listener para aplicar filtros
+document.getElementById('btn-aplicar-filtros')?.addEventListener('click', () => {
+    aplicarFiltrosMovimientos();
+});
+
+// Event listeners para aplicar filtros en tiempo real
+document.getElementById('filtro-tipo')?.addEventListener('change', aplicarFiltrosMovimientos);
+document.getElementById('filtro-usuario')?.addEventListener('input', () => {
+    clearTimeout(window.filtroUsuarioTimeout);
+    window.filtroUsuarioTimeout = setTimeout(aplicarFiltrosMovimientos, 500);
+});
+document.getElementById('filtro-fecha-inicio')?.addEventListener('change', aplicarFiltrosMovimientos);
+document.getElementById('filtro-fecha-fin')?.addEventListener('change', aplicarFiltrosMovimientos);
 
 
 // ==========================================
@@ -546,7 +681,11 @@ document.getElementById('btn-guardar-prod-edit')?.addEventListener('click', asyn
     try {
         const res = await fetch(`${API_URL}/productos`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
         const result = await res.json();
-        if(res.ok) { alert("✅ " + result.mensaje); cerrarModal('modal-editar-prod'); cargarMovimientos(); }
+        if(res.ok) { 
+            cerrarModal('modal-editar-prod'); 
+            cargarMovimientos(); 
+            mostrarExito(result.mensaje || 'Cambios registrados en bitácora');
+        }
         else { alert("❌ " + result.error); }
     } catch(e) { alert("Error conexión"); }
 });
@@ -616,3 +755,185 @@ async function cargarBadgeNotificaciones() {
     } catch (e) { console.error('Error badge:', e); }
 }
 cargarBadgeNotificaciones();
+
+// ==========================================================
+// CIERRE DE CAJA
+// ==========================================================
+const btnCierreCaja = document.getElementById('btn-cierre-caja');
+const modalCierreCaja = document.getElementById('modal-cierre-caja');
+const btnCerrarModalCierre = document.getElementById('cerrar-modal-cierre');
+const btnConfirmarCierre = document.getElementById('btn-confirmar-cierre');
+
+btnCierreCaja.addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${API_URL}/cierre-caja`);
+        const data = await res.json();
+
+        if (res.ok) {
+            if (data.cierre_realizado) {
+                alert('⚠️ El cierre de caja del día ya fue realizado.');
+                return;
+            }
+            mostrarResumenCierre(data);
+            modalCierreCaja.style.display = 'flex';
+        } else {
+            alert(data.error || 'Error al obtener resumen de cierre');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión al obtener resumen');
+    }
+});
+
+btnCerrarModalCierre.addEventListener('click', () => {
+    modalCierreCaja.style.display = 'none';
+});
+
+modalCierreCaja.addEventListener('click', (e) => {
+    if (e.target === modalCierreCaja) {
+        modalCierreCaja.style.display = 'none';
+    }
+});
+
+btnConfirmarCierre.addEventListener('click', async () => {
+    if (!confirm('¿Está seguro de realizar el cierre de caja? Esta acción cerrará el flujo de ventas del día y no se podrán realizar más ventas hasta mañana.')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/cierre-caja`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                usuario_id: usuarioLogueado.id
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            alert('✅ Cierre de caja registrado correctamente.\n\n⚠️ No se podrán realizar más ventas hoy.');
+            modalCierreCaja.style.display = 'none';
+            
+            // Deshabilitar botón de cierre
+            btnCierreCaja.disabled = true;
+            btnCierreCaja.style.opacity = '0.5';
+            btnCierreCaja.style.cursor = 'not-allowed';
+        } else {
+            alert(data.error || 'Error al registrar cierre de caja');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión al registrar cierre');
+    }
+});
+
+function mostrarResumenCierre(data) {
+    // Actualizar fecha y total general
+    document.getElementById('fecha-cierre').textContent = `Fecha: ${formatearFecha(data.fecha)}`;
+    document.getElementById('total-general-cierre').textContent = `$${data.total_general}`;
+
+    // Renderizar resumen por método de pago
+    const resumenMetodosDiv = document.getElementById('resumen-metodos-pago');
+    resumenMetodosDiv.innerHTML = '';
+
+    if (data.resumen_metodos && data.resumen_metodos.length > 0) {
+        data.resumen_metodos.forEach(metodo => {
+            const iconos = {
+                'mercado_pago': '💳',
+                'debito': '💳',
+                'credito': '💳',
+                'efectivo': '💵'
+            };
+            
+            resumenMetodosDiv.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <span style="font-weight: 500;">
+                        ${iconos[metodo.metodo_pago] || '💳'} ${metodo.nombre}
+                        <span style="color: #888; font-size: 0.9rem;">(${metodo.cantidad_ventas} ventas)</span>
+                    </span>
+                    <span style="font-weight: bold; color: #29542e; font-size: 1.2rem;">$${metodo.total}</span>
+                </div>
+            `;
+        });
+    } else {
+        resumenMetodosDiv.innerHTML = '<p style="color: #888; text-align: center;">No hay ventas registradas hoy</p>';
+    }
+
+    // Renderizar tabla de ventas
+    const bodyVentas = document.getElementById('body-ventas-dia');
+    bodyVentas.innerHTML = '';
+
+    if (data.ventas && data.ventas.length > 0) {
+        data.ventas.forEach((venta, index) => {
+            let productosTexto = '';
+            try {
+                const productos = JSON.parse(venta.detalle_productos || '[]');
+                productosTexto = productos.map(p => {
+                    const nombre = p.titulo || p.producto?.titulo || p.nombre || 'Producto';
+                    const cantidad = p.cantidad || 1;
+                    return `${nombre} (x${cantidad})`;
+                }).join(', ');
+            } catch (e) {
+                productosTexto = 'Productos varios';
+            }
+            
+            const hora = new Date(venta.fecha_hora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            
+            const nombresMetodos = {
+                'mercado_pago': 'M. Pago',
+                'debito': 'Débito',
+                'credito': 'Crédito',
+                'efectivo': 'Efectivo'
+            };
+
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+
+            bodyVentas.innerHTML += `
+                <tr style="border-bottom: 1px solid #e9ecef; background: ${bgColor};">
+                    <td style="padding: 12px 15px; white-space: nowrap; font-weight: 500; color: #495057;">
+                        ${hora}
+                    </td>
+                    <td style="padding: 12px 15px; color: #495057; line-height: 1.4;">
+                        <div style="max-height: 40px; overflow: hidden; text-overflow: ellipsis;" title="${productosTexto}">
+                            ${productosTexto}
+                        </div>
+                    </td>
+                    <td style="padding: 12px 15px; text-align: center;">
+                        <span style="background: #e3f2fd; padding: 5px 10px; border-radius: 5px; font-size: 0.85rem; font-weight: 500; color: #1976d2; white-space: nowrap;">
+                            ${nombresMetodos[venta.metodo_pago] || venta.metodo_pago}
+                        </span>
+                    </td>
+                    <td style="padding: 12px 15px; text-align: right; font-weight: 700; color: #29542e; white-space: nowrap; font-size: 1.05rem;">
+                        ${formatCLP(venta.monto_total)}
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        bodyVentas.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #999; font-style: italic;">No hay ventas registradas hoy</td></tr>';
+    }
+}
+
+function formatearFecha(fecha) {
+    const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(fecha).toLocaleDateString('es-CL', opciones);
+}
+
+// Verificar al cargar si ya se hizo cierre hoy
+async function verificarEstadoCierre() {
+    try {
+        const res = await fetch(`${API_URL}/cierre-caja`);
+        const data = await res.json();
+
+        if (res.ok && data.cierre_realizado) {
+            btnCierreCaja.disabled = true;
+            btnCierreCaja.style.opacity = '0.5';
+            btnCierreCaja.style.cursor = 'not-allowed';
+            btnCierreCaja.title = 'El cierre de caja del día ya fue realizado';
+        }
+    } catch (error) {
+        console.error('Error al verificar estado de cierre:', error);
+    }
+}
+verificarEstadoCierre();

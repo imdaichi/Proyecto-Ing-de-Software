@@ -36,6 +36,9 @@ function iniciarVentas(usuario) {
     const lista = document.getElementById('lista-productos-escaneados');
     const totalEl = document.getElementById('venta-total');
 
+    // Verificar si ya se hizo cierre de caja hoy
+    verificarEstadoCierre();
+
     window.cambiarCantidad = function (index, delta) {
         if (ventaActual[index]) {
             ventaActual[index].cantidad += delta;
@@ -65,16 +68,51 @@ function iniciarVentas(usuario) {
         escaner.disabled = true;
         try {
             const res = await fetch(`${API_URL}/productos/${encodeURIComponent(sku)}`);
-            if (!res.ok) throw new Error("No encontrado");
+            if (!res.ok) {
+                mostrarError('Producto no encontrado');
+                escaner.select();
+                return;
+            }
             const prod = await res.json();
 
+            // Verificar si el producto está inactivo
+            if (prod.estado && prod.estado.toLowerCase() !== 'activo') {
+                mostrarError(`El producto ${prod.Titulo || sku} está inactivo y no se puede vender`);
+                escaner.value = '';
+                escaner.focus();
+                return;
+            }
+
+            // Verificar si hay stock
+            const stock = parseInt(prod.Stock || prod.stock || 0);
+            if (stock <= 0) {
+                mostrarError(`Sin stock disponible para ${prod.Titulo || sku}`);
+                escaner.value = '';
+                escaner.focus();
+                return;
+            }
+
             const existe = ventaActual.find(i => i.sku === (prod.id_sku_en_db || sku));
-            if (existe) existe.cantidad++;
-            else ventaActual.push({ sku: prod.id_sku_en_db || sku, producto: prod, cantidad: 1 });
+            if (existe) {
+                // Verificar si hay stock suficiente
+                if (existe.cantidad >= stock) {
+                    mostrarError(`Stock insuficiente para ${prod.Titulo || sku}. Stock disponible: ${stock}`);
+                    escaner.value = '';
+                    escaner.focus();
+                    return;
+                }
+                existe.cantidad++;
+            } else {
+                ventaActual.push({ sku: prod.id_sku_en_db || sku, producto: prod, cantidad: 1 });
+            }
 
             actualizar();
-            escaner.value = ''; escaner.focus();
-        } catch (e) { alert(e.message); escaner.select(); }
+            escaner.value = ''; 
+            escaner.focus();
+        } catch (e) { 
+            mostrarError(e.message || 'Error al buscar producto'); 
+            escaner.select(); 
+        }
         finally { escaner.disabled = false; escaner.focus(); }
     }
 
@@ -183,18 +221,98 @@ function iniciarVentas(usuario) {
                 });
 
                 if (res.ok) {
-                    alert(`Venta procesada con ${btn.textContent.trim()}`);
+                    // Mostrar modal de confirmación personalizado
+                    const modalConfirmacion = document.getElementById('modal-confirmacion');
+                    const mensajeConfirmacion = document.getElementById('mensaje-confirmacion');
+                    const metodoConfirmacion = document.getElementById('metodo-confirmacion');
+                    
+                    // Obtener nombre del método de pago
+                    const nombreMetodo = {
+                        'mercado_pago': 'Mercado Pago',
+                        'debito': 'Tarjeta de Débito',
+                        'credito': 'Tarjeta de Crédito',
+                        'efectivo': 'Efectivo'
+                    }[metodoPago] || metodoPago;
+                    
+                    mensajeConfirmacion.textContent = `Venta de ${formatearPeso(totalFinal)} procesada correctamente`;
+                    metodoConfirmacion.textContent = `Método de pago: ${nombreMetodo}`;
+                    modalConfirmacion.style.display = 'flex';
+                    
                     ventaActual = [];
                     actualizar();
                     modalMetodoPago.style.display = 'none';
-                    escaner.focus();
                 } else {
                     const err = await res.json().catch(()=>({}));
-                    alert("Error al procesar la venta" + (err.error?`: ${err.error}`:''));
+                    mostrarError(err.error || 'Error desconocido al procesar la venta');
+                    modalMetodoPago.style.display = 'none';
                 }
             } catch (e) {
-                alert("Error de conexión");
+                mostrarError('Error de conexión con el servidor');
+                modalMetodoPago.style.display = 'none';
             }
         });
     });
+
+    // Cerrar modal de confirmación
+    const btnCerrarConfirmacion = document.getElementById('btn-cerrar-confirmacion');
+    const modalConfirmacion = document.getElementById('modal-confirmacion');
+    
+    btnCerrarConfirmacion.addEventListener('click', () => {
+        modalConfirmacion.style.display = 'none';
+        escaner.focus();
+    });
+    
+    modalConfirmacion.addEventListener('click', (e) => {
+        if (e.target === modalConfirmacion) {
+            modalConfirmacion.style.display = 'none';
+            escaner.focus();
+        }
+    });
+
+    // Función para mostrar modal de error
+    function mostrarError(mensaje) {
+        const modalError = document.getElementById('modal-error');
+        const mensajeError = document.getElementById('mensaje-error');
+        mensajeError.textContent = mensaje;
+        modalError.style.display = 'flex';
+    }
+
+    // Cerrar modal de error
+    const btnCerrarError = document.getElementById('btn-cerrar-error');
+    const modalError = document.getElementById('modal-error');
+    
+    btnCerrarError.addEventListener('click', () => {
+        modalError.style.display = 'none';
+        escaner.focus();
+    });
+    
+    modalError.addEventListener('click', (e) => {
+        if (e.target === modalError) {
+            modalError.style.display = 'none';
+            escaner.focus();
+        }
+    });
+
+    // Verificar si ya se hizo cierre de caja hoy
+    async function verificarEstadoCierre() {
+        try {
+            const res = await fetch(`${API_URL}/cierre-caja`);
+            const data = await res.json();
+
+            if (res.ok && data.cierre_realizado) {
+                // Deshabilitar interfaz de ventas
+                document.getElementById('btn-cobrar').disabled = true;
+                document.getElementById('btn-cobrar').style.opacity = '0.5';
+                document.getElementById('btn-cobrar').style.cursor = 'not-allowed';
+                document.getElementById('escaner-sku').disabled = true;
+                document.getElementById('escaner-sku').placeholder = '⚠️ Caja cerrada - No se pueden realizar ventas hoy';
+                document.getElementById('escaner-sku').style.background = '#f8d7da';
+                
+                // Mostrar mensaje
+                alert('⚠️ El cierre de caja del día ya fue realizado.\nNo se pueden realizar más ventas hasta mañana.');
+            }
+        } catch (error) {
+            console.error('Error al verificar estado de cierre:', error);
+        }
+    }
 }

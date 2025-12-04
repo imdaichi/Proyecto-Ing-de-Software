@@ -23,6 +23,24 @@ try {
 
 if ($metodo === 'POST') {
     try {
+        // Verificar si ya se hizo el cierre de caja del día
+        $fechaHoy = date('Y-m-d');
+        $stmt = $pdo->prepare("
+            SELECT id FROM cierres_caja 
+            WHERE DATE(fecha_cierre) = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$fechaHoy]);
+        $cierreExistente = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($cierreExistente) {
+            http_response_code(403);
+            echo json_encode([
+                'error' => 'No se pueden realizar ventas. El cierre de caja del día ya fue realizado.'
+            ]);
+            exit;
+        }
+        
         $pdo->beginTransaction();
 
         $total = $datos['total'];

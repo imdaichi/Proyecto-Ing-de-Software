@@ -1,45 +1,74 @@
 <?php
+// Limpiar cualquier salida previa
+ob_start();
+
 require_once __DIR__ . '/Config/db.php';
-require_once __DIR__ . '/vendor/autoload.php';
 
-use Kreait\Firebase\Factory;
-
-if (!isset($pdo) && isset($db)) { $pdo = $db; }
-
+// Cargar Firebase solo si existe vendor/autoload.php
 $firebase = null;
 $firestore = null;
 
-try {
-    $credentialsPath = __DIR__ . '/firebase-credentials.json';
-    if (file_exists($credentialsPath)) {
-        $firebase = (new Factory)->withServiceAccount($credentialsPath);
-        $firestore = $firebase->createFirestore()->database();
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    
+    try {
+        $credentialsPath = __DIR__ . '/firebase-credentials.json';
+        if (file_exists($credentialsPath)) {
+            $firebase = (new \Kreait\Firebase\Factory)->withServiceAccount($credentialsPath);
+            $firestore = $firebase->createFirestore()->database();
+        }
+    } catch (Exception $e) {
+        error_log("Firebase init error: " . $e->getMessage());
+        $firestore = null;
     }
-} catch (Exception $e) {
-    error_log("Firebase init error: " . $e->getMessage());
-    $firestore = null;
 }
+
+if (!isset($pdo) && isset($db)) { $pdo = $db; }
 
 if ($metodo === 'GET') {
     global $partes; $skuUrl = $partes[1] ?? null;
     if ($skuUrl) {
         $skuUrl = urldecode($skuUrl);
-        $stmt = $pdo->prepare("SELECT * FROM productos WHERE sku = ?");
-        $stmt->execute([$skuUrl]);
-        $p = $stmt->fetch(PDO::FETCH_ASSOC);
-        if($p) {
-            $p['Titulo']=$p['titulo']; $p['Stock']=$p['stock']; $p['Precio Venta']=$p['precio_venta']; $p['id_sku_en_db']=$p['sku'];
-            echo json_encode($p);
-        } else { http_response_code(404); echo json_encode(['error'=>'No existe']); }
-    } else {
-        $stmt = $pdo->query("SELECT * FROM productos WHERE estado='activo'");
-        $raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $final = [];
-        foreach($raw as $p){
-            $p['Titulo']=$p['titulo']; $p['Stock']=$p['stock']; $p['Precio Venta']=$p['precio_venta']; $p['id_sku_en_db']=$p['sku'];
-            $final[]=$p;
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM productos WHERE sku = ?");
+            $stmt->execute([$skuUrl]);
+            $p = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Limpiar buffer antes de enviar JSON
+            ob_clean();
+            
+            if($p) {
+                $p['Titulo']=$p['titulo']; $p['Stock']=$p['stock']; $p['Precio Venta']=$p['precio_venta']; $p['id_sku_en_db']=$p['sku'];
+                echo json_encode($p);
+            } else { 
+                http_response_code(404); 
+                echo json_encode(['error'=>'No existe']); 
+            }
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Error buscando producto: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error'=>'Error en la consulta']);
         }
-        echo json_encode($final);
+    } else {
+        try {
+            $stmt = $pdo->query("SELECT * FROM productos WHERE estado='activo'");
+            $raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $final = [];
+            foreach($raw as $p){
+                $p['Titulo']=$p['titulo']; $p['Stock']=$p['stock']; $p['Precio Venta']=$p['precio_venta']; $p['id_sku_en_db']=$p['sku'];
+                $final[]=$p;
+            }
+            
+            // Limpiar buffer antes de enviar JSON
+            ob_clean();
+            echo json_encode($final);
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Error listando productos: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error'=>'Error en la consulta']);
+        }
     }
 }
 
