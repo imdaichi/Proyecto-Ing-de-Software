@@ -5,6 +5,8 @@ if (!isset($pdo) && isset($db)) { $pdo = $db; }
 
 $archivoLocal = __DIR__ . '/CimehijoDB.csv';
 
+// Determinar si se trata de una solicitud API o una solicitud directa
+$esAPI = isset($metodo) && $metodo === 'GET';
 
 function limpiarTexto($texto) {
     if (!$texto) return '';
@@ -12,11 +14,20 @@ function limpiarTexto($texto) {
     return trim($texto);
 }
 
-
-echo "<body style='font-family: sans-serif; padding: 20px;'><h2>🔄 Sincronización Detallada</h2>";
+if (!$esAPI) {
+    echo "<body style='font-family: sans-serif; padding: 20px;'><h2>🔄 Sincronización Detallada</h2>";
+}
 
 try {
-    if (!file_exists($archivoLocal)) { echo "❌ Falta CimehijoDB.csv"; exit; }
+    if (!file_exists($archivoLocal)) { 
+        if ($esAPI) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Archivo CimehijoDB.csv no encontrado']);
+        } else {
+            echo "❌ Falta CimehijoDB.csv";
+        }
+        exit; 
+    }
     
     $csvFile = fopen($archivoLocal, 'r');
     fgetcsv($csvFile);
@@ -85,10 +96,24 @@ try {
     }
 
     $pdo->commit();
-    echo "✅ Sincronización terminada. $count productos procesados.";
+    
+    if ($esAPI) {
+        echo json_encode([
+            'mensaje' => 'Sincronización completada',
+            'productos_procesados' => $count
+        ]);
+    } else {
+        echo "✅ Sincronización terminada. $count productos procesados.";
+    }
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    echo "❌ Error: " . $e->getMessage();
+    
+    if ($esAPI) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
+    } else {
+        echo "❌ Error: " . $e->getMessage();
+    }
 }
 ?>

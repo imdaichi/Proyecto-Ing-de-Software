@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/Cache.php';
+require_once __DIR__ . '/CacheInvalidator.php';
 
 if (!isset($pdo)) {
     http_response_code(500); 
@@ -9,9 +11,17 @@ if (!isset($pdo)) {
 
 if ($metodo === 'GET') {
     try {
-
-        $stmt = $pdo->query("SELECT * FROM proveedores ORDER BY id DESC");
-        $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Intentar obtener del caché
+        $proveedores = $cache->get('proveedores_list');
+        
+        if ($proveedores === null) {
+            // No está en caché, consultar BD
+            $stmt = $pdo->query("SELECT * FROM proveedores ORDER BY id DESC");
+            $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Guardar en caché (10 minutos)
+            $cache->set('proveedores_list', $proveedores, 600);
+        }
         
         echo json_encode($proveedores);
 
@@ -43,12 +53,18 @@ if ($metodo === 'POST') {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$nombre, $contacto, $telefono, $email, $categoria, $id_prov]);
             
+            // Invalidar caché de proveedores
+            $cacheInvalidator->invalidarProveedores();
+            
             echo json_encode(['mensaje' => 'Proveedor actualizado correctamente']);
             
         } else {
             $sql = "INSERT INTO proveedores (nombre, contacto, telefono, email, categoria) VALUES (?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$nombre, $contacto, $telefono, $email, $categoria]);
+            
+            // Invalidar caché de proveedores
+            $cacheInvalidator->invalidarProveedores();
             
             echo json_encode(['mensaje' => 'Proveedor creado exitosamente']);
         }
@@ -71,6 +87,9 @@ if ($metodo === 'DELETE') {
     try {
         $stmt = $pdo->prepare("DELETE FROM proveedores WHERE id = ?");
         $stmt->execute([$id]);
+        
+        // Invalidar caché de proveedores
+        $cacheInvalidator->invalidarProveedores();
         
         echo json_encode(['mensaje' => 'Proveedor eliminado correctamente']);
 

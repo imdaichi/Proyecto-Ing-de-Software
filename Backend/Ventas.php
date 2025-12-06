@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/Cache.php';
+require_once __DIR__ . '/CacheInvalidator.php';
+
 if (!isset($pdo)) exit;
 
 // Inicializar Firebase (solo una vez)
@@ -112,6 +115,10 @@ if ($metodo === 'POST') {
         }
 
         $pdo->commit();
+        
+        // Invalidar cachés relacionados con ventas
+        $cacheInvalidator->invalidarVenta();
+        
         echo json_encode(['mensaje' => 'Venta registrada', 'id_venta' => $idVenta]);
 
     } catch (Exception $e) {

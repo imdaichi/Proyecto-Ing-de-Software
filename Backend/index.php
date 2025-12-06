@@ -38,8 +38,12 @@ switch ($entidad) {
     case 'login':       require __DIR__ . '/Login.php'; break;
     case 'recuperar-password': require __DIR__ . '/RecuperarPassword.php'; break;
     case 'cierre-caja': require __DIR__ . '/CierreCaja.php'; break;
-    case 'importar':    require __DIR__ . '/ImportarCSV.php'; break;
+    case 'importar':    require __DIR__ . '/importar_manual.php'; break;
     case 'notificaciones': require __DIR__ . '/Notificaciones.php'; break;
+    case 'sincronizar-firebase': require __DIR__ . '/SincronizarFirebase.php'; break;
+    case 'debug-firebase': require __DIR__ . '/DebugFirebase.php'; break;
+    case 'limpiar-cache': require __DIR__ . '/LimpiarCache.php'; break;
+    case 'ranking-metodos-pago': require __DIR__ . '/RankingMetodosPago.php'; break;
 
     default:
         if ($entidad === '' || $entidad === 'index.php') {

@@ -3,6 +3,8 @@
 ob_start();
 
 require_once __DIR__ . '/Config/db.php';
+require_once __DIR__ . '/Cache.php';
+require_once __DIR__ . '/CacheInvalidator.php';
 
 // Cargar Firebase solo si existe vendor/autoload.php
 $firebase = null;
@@ -30,9 +32,20 @@ if ($metodo === 'GET') {
     if ($skuUrl) {
         $skuUrl = urldecode($skuUrl);
         try {
-            $stmt = $pdo->prepare("SELECT * FROM productos WHERE sku = ?");
-            $stmt->execute([$skuUrl]);
-            $p = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Intentar obtener del caché
+            $p = $cache->get("producto_$skuUrl");
+            
+            if ($p === null) {
+                // No está en caché, consultar BD
+                $stmt = $pdo->prepare("SELECT * FROM productos WHERE sku = ?");
+                $stmt->execute([$skuUrl]);
+                $p = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Guardar en caché (10 minutos)
+                if ($p) {
+                    $cache->set("producto_$skuUrl", $p, 600);
+                }
+            }
             
             // Limpiar buffer antes de enviar JSON
             ob_clean();
@@ -136,6 +149,9 @@ if ($metodo === 'POST') {
 
             $sqlUpd = "UPDATE productos SET titulo=?, precio_venta=?, stock=?, variantes=?, descripcion=?, categoria=?, estado=? WHERE sku=?";
             $pdo->prepare($sqlUpd)->execute([$nTitulo, $nPrecio, $nStock, $nVariantes, $nDesc, $nCat, $nEstado, $sku]);
+            
+            // Invalidar caché automáticamente
+            $cacheInvalidator->invalidarProducto($sku);
             
             // Sincronizar con Firebase
             if ($firestore) {

@@ -1,18 +1,9 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
-header('Access-Control-Allow-Headers: Content-Type');
+// Backend/CierreCaja.php
+if (!isset($pdo)) exit;
 
-require_once __DIR__ . '/Config/db.php';
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-try {
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if ($metodo === 'GET') {
+    try {
         // Obtener resumen de ventas del día
         $fechaHoy = date('Y-m-d');
         
@@ -74,23 +65,27 @@ try {
         
         foreach ($resumenMetodos as &$metodo) {
             $metodo['nombre'] = $nombresMetodos[$metodo['metodo_pago']] ?? $metodo['metodo_pago'];
-            $metodo['total'] = number_format($metodo['total'], 0, ',', '.');
+            $metodo['total'] = (int)$metodo['total'];
         }
         
         echo json_encode([
             'fecha' => $fechaHoy,
-            'total_ventas' => (int)$totales['total_ventas'],
-            'total_general' => number_format($totales['total_general'] ?? 0, 0, ',', '.'),
-            'total_general_numero' => $totales['total_general'] ?? 0,
+            'total_ventas' => (int)($totales['total_ventas'] ?? 0),
+            'total_general' => (int)($totales['total_general'] ?? 0),
             'resumen_metodos' => $resumenMetodos,
             'ventas' => $ventasDelDia,
             'cierre_realizado' => $cierreExistente ? true : false
         ]);
         
-    } else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    } catch (Exception $e) {
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
+    }
+    
+} else if ($metodo === 'POST') {
+    try {
         // Registrar cierre de caja
-        $input = json_decode(file_get_contents('php://input'), true);
-        $usuario_id = $input['usuario_id'] ?? null;
+        $usuario_id = $datos['usuario_id'] ?? null;
         
         if (!$usuario_id) {
             http_response_code(400);
@@ -137,8 +132,8 @@ try {
         ");
         $stmt->execute([
             $usuario_id,
-            $totales['total_ventas'],
-            $totales['total_monto']
+            $totales['total_ventas'] ?? 0,
+            $totales['total_monto'] ?? 0
         ]);
         
         echo json_encode([
@@ -146,9 +141,9 @@ try {
             'mensaje' => 'Cierre de caja registrado correctamente',
             'cierre_id' => $pdo->lastInsertId()
         ]);
+        
+    } catch (Exception $e) {
+        http_response_code(500); 
+        echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
     }
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Error del servidor: ' . $e->getMessage()]);
 }

@@ -4,6 +4,88 @@ function formatearPeso(num) {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(num);
 }
 
+// Función para mostrar modal de confirmación con opciones
+function mostrarConfirmacion(mensaje, onAceptar, onCancelar) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay visible';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 450px;">
+            <h2 style="color: #29542e; margin: 0 0 20px 0; font-size: 1.3rem; text-align: center;">${mensaje}</h2>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btn-confirm-aceptar" class="btn-success" style="flex: 1; padding: 12px 20px; background-color: #29542e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Aceptar</button>
+                <button id="btn-confirm-cancelar" style="flex: 1; padding: 12px 20px; background-color: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Cancelar</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const btnAceptar = modal.querySelector('#btn-confirm-aceptar');
+    const btnCancelar = modal.querySelector('#btn-confirm-cancelar');
+    
+    btnAceptar.addEventListener('click', () => {
+        modal.remove();
+        if (onAceptar) onAceptar();
+    });
+    
+    btnCancelar.addEventListener('click', () => {
+        modal.remove();
+        if (onCancelar) onCancelar();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (onCancelar) onCancelar();
+        }
+    });
+}
+
+// Función para mostrar modal de input
+function mostrarInputModal(titulo, placeholder, onAceptar, onCancelar) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay visible';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 450px;">
+            <h2 style="color: #29542e; margin: 0 0 20px 0; font-size: 1.3rem; text-align: center;">${titulo}</h2>
+            <input type="text" id="input-modal" placeholder="${placeholder}" style="width: 100%; padding: 12px; border: 2px solid #29542e; border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btn-input-aceptar" style="flex: 1; padding: 12px 20px; background-color: #29542e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Aceptar</button>
+                <button id="btn-input-cancelar" style="flex: 1; padding: 12px 20px; background-color: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Cancelar</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const input = modal.querySelector('#input-modal');
+    const btnAceptar = modal.querySelector('#btn-input-aceptar');
+    const btnCancelar = modal.querySelector('#btn-input-cancelar');
+    
+    input.focus();
+    
+    const handleAceptar = () => {
+        const valor = input.value.trim();
+        modal.remove();
+        if (onAceptar) onAceptar(valor);
+    };
+    
+    const handleCancelar = () => {
+        modal.remove();
+        if (onCancelar) onCancelar();
+    };
+    
+    btnAceptar.addEventListener('click', handleAceptar);
+    btnCancelar.addEventListener('click', handleCancelar);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleAceptar();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) handleCancelar();
+    });
+}
+
 window.onload = function () {
     const usuario = JSON.parse(sessionStorage.getItem('usuarioLogueado'));
     if (!usuario) { window.location.href = '../index.html'; return; }
@@ -50,10 +132,10 @@ function iniciarVentas(usuario) {
     };
 
     window.eliminarItem = function (index) {
-        if (confirm('¿Eliminar este producto?')) {
+        mostrarConfirmacion('¿Eliminar este producto?', () => {
             ventaActual.splice(index, 1);
             actualizar();
-        }
+        });
     };
 
     escaner.focus();
@@ -151,18 +233,23 @@ function iniciarVentas(usuario) {
     if (btnCantidad) {
         btnCantidad.addEventListener('click', () => {
             if (ventaActual.length) {
-                const c = prompt("Ingrese la cantidad a agregar:");
-                const n = parseInt(c, 10);
-                if (!isNaN(n) && n > 0) {
-                    ventaActual[ventaActual.length - 1].cantidad *= n;
-                    actualizar();
-                }
+                mostrarInputModal('Ingrese la cantidad a agregar:', 'Cantidad', (valor) => {
+                    const n = parseInt(valor, 10);
+                    if (!isNaN(n) && n > 0) {
+                        ventaActual[ventaActual.length - 1].cantidad *= n;
+                        actualizar();
+                    }
+                });
             }
         });
     }
 
     document.getElementById('btn-cancelar').addEventListener('click', () => {
-        if (confirm("¿Limpiar?")) { ventaActual = []; actualizar(); escaner.focus(); }
+        mostrarConfirmacion('¿Limpiar la venta?', () => {
+            ventaActual = [];
+            actualizar();
+            escaner.focus();
+        });
     });
 
     const modalMetodoPago = document.getElementById('modal-metodo-pago');
@@ -172,7 +259,7 @@ function iniciarVentas(usuario) {
 
     document.getElementById('btn-cobrar').addEventListener('click', () => {
         if (ventaActual.length === 0) {
-            alert("No hay productos en la venta");
+            mostrarError("No hay productos en la venta");
             return;
         }
 
@@ -180,18 +267,18 @@ function iniciarVentas(usuario) {
         totalACobrar.innerText = `Total: ${formatearPeso(totalFinal)}`;
 
 
-        modalMetodoPago.style.display = 'flex';
+        modalMetodoPago.classList.add('visible');
     });
 
 
     cerrarModalPago.addEventListener('click', () => {
-        modalMetodoPago.style.display = 'none';
+        modalMetodoPago.classList.remove('visible');
     });
 
 
     modalMetodoPago.addEventListener('click', (e) => {
         if (e.target === modalMetodoPago) {
-            modalMetodoPago.style.display = 'none';
+            modalMetodoPago.classList.remove('visible');
         }
     });
 
@@ -236,19 +323,19 @@ function iniciarVentas(usuario) {
                     
                     mensajeConfirmacion.textContent = `Venta de ${formatearPeso(totalFinal)} procesada correctamente`;
                     metodoConfirmacion.textContent = `Método de pago: ${nombreMetodo}`;
-                    modalConfirmacion.style.display = 'flex';
+                    modalConfirmacion.classList.add('visible');
                     
                     ventaActual = [];
                     actualizar();
-                    modalMetodoPago.style.display = 'none';
+                    modalMetodoPago.classList.remove('visible');
                 } else {
                     const err = await res.json().catch(()=>({}));
                     mostrarError(err.error || 'Error desconocido al procesar la venta');
-                    modalMetodoPago.style.display = 'none';
+                    modalMetodoPago.classList.remove('visible');
                 }
             } catch (e) {
                 mostrarError('Error de conexión con el servidor');
-                modalMetodoPago.style.display = 'none';
+                modalMetodoPago.classList.remove('visible');
             }
         });
     });
@@ -258,13 +345,13 @@ function iniciarVentas(usuario) {
     const modalConfirmacion = document.getElementById('modal-confirmacion');
     
     btnCerrarConfirmacion.addEventListener('click', () => {
-        modalConfirmacion.style.display = 'none';
+        modalConfirmacion.classList.remove('visible');
         escaner.focus();
     });
     
     modalConfirmacion.addEventListener('click', (e) => {
         if (e.target === modalConfirmacion) {
-            modalConfirmacion.style.display = 'none';
+            modalConfirmacion.classList.remove('visible');
             escaner.focus();
         }
     });
@@ -274,7 +361,7 @@ function iniciarVentas(usuario) {
         const modalError = document.getElementById('modal-error');
         const mensajeError = document.getElementById('mensaje-error');
         mensajeError.textContent = mensaje;
-        modalError.style.display = 'flex';
+        modalError.classList.add('visible');
     }
 
     // Cerrar modal de error
@@ -282,13 +369,13 @@ function iniciarVentas(usuario) {
     const modalError = document.getElementById('modal-error');
     
     btnCerrarError.addEventListener('click', () => {
-        modalError.style.display = 'none';
+        modalError.classList.remove('visible');
         escaner.focus();
     });
     
     modalError.addEventListener('click', (e) => {
         if (e.target === modalError) {
-            modalError.style.display = 'none';
+            modalError.classList.remove('visible');
             escaner.focus();
         }
     });

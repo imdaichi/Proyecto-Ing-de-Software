@@ -299,6 +299,12 @@ body {
     padding: 20px 0;
 }
 
+/* Alinear títulos/labels de formularios de modales a la izquierda */
+.modal-body label {
+    text-align: left;
+    display: block;
+}
+
 .escaner-modal-container {
     display: flex;
     gap: 10px;
@@ -354,11 +360,11 @@ body {
     font-size: 1.1rem;
 }
 
-/* Botón Actualizar Proveedor centrado, rectángulo naranja */
+/* Botón Actualizar Proveedor centrado, verde corporativo */
 .btn-actualizar-prov {
-    background-color: #e67e22 !important;
+    background-color: #27ae60 !important;
     color: #fff !important;
-    border: 1px solid #e67e22 !important;
+    border: 1px solid #27ae60 !important;
     padding: 12px 18px !important;
     width: 60%;
     margin: 10px auto 0;
@@ -369,8 +375,8 @@ body {
     text-align: center;
 }
 .btn-actualizar-prov:hover {
-    background-color: #d35400 !important;
-    border-color: #d35400 !important;
+    background-color: #1f8f4d !important;
+    border-color: #1f8f4d !important;
 }
 
 /* Botón Guardar Nuevo Proveedor con recuadro verde centrado */
@@ -397,26 +403,31 @@ body {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(3px);
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     z-index: 9999 !important;
     display: none;
     justify-content: center;
     align-items: center;
 }
 
+.modal-overlay.visible {
+    display: flex;
+}
+
 .modal-content {
     background: #ffffff;
     width: 450px;
-    max-width: 90%;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    max-width: 85%;
+    padding: 40px 30px;
+    border-radius: 15px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
     position: relative;
     font-family: Arial, sans-serif;
     display: flex;
     flex-direction: column;
     gap: 15px;
+    text-align: center;
 }
 
 .modal-header {
@@ -432,6 +443,12 @@ body {
     margin: 0;
     color: #2c3e50;
     font-size: 1.5rem;
+    line-height: 1;
+}
+
+.modal-header h3 {
+    margin: 0;
+    line-height: 1;
 }
 
 .modal-cerrar-btn {
@@ -718,6 +735,201 @@ body {
     box-shadow: 0 4px 12px rgba(41, 84, 46, 0.3);
 }
 
+/* Estilos para modales de error y confirmación */
+#modal-error .modal-content,
+#modal-confirmacion .modal-content {
+    max-width: 450px;
+}
+
+.modal-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+    line-height: 1;
+}
+
+.modal-icon.error {
+    color: #e74c3c;
+}
+
+.modal-icon.success {
+    color: #27ae60;
+}
+
+.modal-content h2 {
+    font-size: 1.8rem;
+    margin: 15px 0 10px 0;
+    font-weight: bold;
+}
+
+.modal-content h2.error-title {
+    color: #e74c3c;
+}
+
+.modal-content h2.success-title {
+    color: #27ae60;
+}
+
+.modal-content p {
+    font-size: 1.05rem;
+    color: #555;
+    margin: 10px 0;
+    line-height: 1.4;
+}
+
+.modal-content button {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.modal-content button.btn-success {
+    background-color: #29542e;
+    color: white;
+}
+
+.modal-content button.btn-success:hover {
+    background-color: #1e3f21;
+    transform: translateY(-2px);
+}
+
+.modal-content button.btn-error {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.modal-content button.btn-error:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+}
+
+
 .btn-metodo-pago:active {
     transform: translateY(-1px);
+}
+
+/* Ajustes específicos para el modal de buscar producto por SKU */
+#modal-buscar-prod .modal-body {
+    padding: 16px 0 10px;
+}
+
+#modal-buscar-prod .modal-body label {
+    margin-bottom: 6px;
+}
+
+#modal-buscar-prod .sku-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#modal-buscar-prod #buscar-prod-sku {
+    flex: 1;
+    height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+#modal-buscar-prod #btn-buscar-prod-modal {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 1.4rem;
+    background: transparent;
+    color: #2ecc71;
+    border: none;
+    border-radius: 6px;
+    box-shadow: none;
+    cursor: pointer;
+    line-height: 1;
+    transform: translateY(-10px);
+}
+
+#modal-buscar-prod #btn-buscar-prod-modal:hover {
+    color: #27ae60;
+}
+
+#modal-buscar-prod #btn-buscar-prod-modal:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.25);
+}
+
+/* Botón Actualizar Producto en modal de edición */
+.btn-actualizar-producto {
+    background-color: #27ae60 !important;
+    color: #fff !important;
+    border: 1px solid #27ae60 !important;
+    padding: 12px 18px !important;
+    width: 100%;
+    margin-top: 20px;
+    display: block;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-actualizar-producto:hover {
+    background-color: #1f8f4d !important;
+    border-color: #1f8f4d !important;
+}
+
+/* Mensaje de error en modales */
+.modal-error {
+    background-color: #fee;
+    border-left: 4px solid #e74c3c;
+    color: #c0392b;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    padding: 16px 24px;
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-info {
+    background-color: #3498db;
+}
+
+.toast-success {
+    background-color: #27ae60;
+}
+
+.toast-warning {
+    background-color: #f39c12;
+}
+
+.toast-error {
+    background-color: #e74c3c;
 }
