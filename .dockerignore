@@ -1,0 +1,59 @@
+# Git
+.git/
+.gitignore
+
+# Documentación
+*.md
+!README.md
+
+# Logs y debug
+*.log
+ventas_debug.log
+
+# Archivos temporales
+*.tmp
+*.bak
+*.backup
+*.sql
+*.csv
+*.xlsx
+
+# Scripts de desarrollo
+*.ps1
+fix-*.php
+*Mock.php
+*Debug.php
+
+# Caché
+/tmp/
+cache/
+*.cache
+
+# IDE y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node modules (si los hubiera)
+node_modules/
+
+# Composer
+/vendor/
+composer.lock
+
+# Configuración local (solo examples)
+.env
+.env.local
+.env.*.local
+
+# Archivos de importación temporal
+Backend/CimehijoDB.csv
+Backend/frontend/
+Backend/Registro_movimientos/*.log

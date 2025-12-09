@@ -16,16 +16,19 @@ services:
       - db
     environment:
       - DB_HOST=db
-      - DB_NAME=cimehijo_db
+      - DB_NAME=${MYSQL_DATABASE}
       - DB_USER=root
-      - DB_PASS=root
+      - DB_PASS=${MYSQL_ROOT_PASSWORD}
 
   db:
     image: mysql:8.0
     container_name: cimehijo_db
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: cimehijo_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      TZ: America/Santiago
     ports:
       - "3307:3306"
     volumes:

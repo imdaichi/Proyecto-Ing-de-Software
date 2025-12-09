@@ -4,6 +4,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+// Configurar zona horaria
+date_default_timezone_set('America/Santiago'); // UTC-3 (Chile)
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -37,13 +40,18 @@ switch ($entidad) {
     case 'proveedores': require __DIR__ . '/Proveedores.php'; break;
     case 'login':       require __DIR__ . '/Login.php'; break;
     case 'recuperar-password': require __DIR__ . '/RecuperarPassword.php'; break;
+    case 'generar-token-recuperacion': require __DIR__ . '/GenerarTokenRecuperacion.php'; break;
+    case 'validar-token-recuperacion': require __DIR__ . '/ValidarTokenRecuperacion.php'; break;
+    case 'cambiar-password-recuperacion': require __DIR__ . '/CambiarPasswordRecuperacion.php'; break;
     case 'cierre-caja': require __DIR__ . '/CierreCaja.php'; break;
     case 'importar':    require __DIR__ . '/importar_manual.php'; break;
     case 'notificaciones': require __DIR__ . '/Notificaciones.php'; break;
+    case 'config-notificaciones': require __DIR__ . '/ConfigNotificaciones.php'; break;
     case 'sincronizar-firebase': require __DIR__ . '/SincronizarFirebase.php'; break;
     case 'debug-firebase': require __DIR__ . '/DebugFirebase.php'; break;
     case 'limpiar-cache': require __DIR__ . '/LimpiarCache.php'; break;
     case 'ranking-metodos-pago': require __DIR__ . '/RankingMetodosPago.php'; break;
+    case 'archivar-movimientos': require __DIR__ . '/ArchivarMovimientos.php'; break;
 
     default:
         if ($entidad === '' || $entidad === 'index.php') {

@@ -90,11 +90,18 @@ if ($metodo === 'POST') {
     if(!$sku){ http_response_code(400); echo json_encode(['error'=>'Falta SKU']); exit;}
 
     try {
+        $pdo->beginTransaction();
+        
         $stmt = $pdo->prepare("SELECT * FROM productos WHERE sku=?");
         $stmt->execute([$sku]);
         $viejo = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if(!$viejo) { http_response_code(404); echo json_encode(['error'=>'No encontrado']); exit;}
+        if(!$viejo) { 
+            $pdo->rollBack();
+            http_response_code(404); 
+            echo json_encode(['error'=>'No encontrado']); 
+            exit;
+        }
 
         $nTitulo    = $datos['titulo'] ?? $viejo['titulo'];
         $nPrecio    = isset($datos['precio']) ? (int)$datos['precio'] : $viejo['precio_venta'];
@@ -105,19 +112,22 @@ if ($metodo === 'POST') {
         $nEstado    = $datos['estado'] ?? $viejo['estado'];
         
         $user = $datos['usuario'] ?? 'Admin Web';
-        
+        // Usar date() que respeta date_default_timezone_set(), no microtime() que es UTC siempre
+        $ahora = microtime(true);
+        $microsegundos = sprintf("%06d", ($ahora - floor($ahora)) * 1000000);
+        $fechaActual = date('Y-m-d H:i:s') . '.' . $microsegundos;
 
         $cambios = [];
         $tipoMov = 'edicion';
 
         if ($nTitulo !== $viejo['titulo']) {
-            $cambios[] = "Título: <b>{$viejo['titulo']}</b> ➝ <b>$nTitulo</b>";
+            $cambios[] = "Título: <b>{$viejo['titulo']}</b> &rarr; <b>$nTitulo</b>";
         }
 
         if ($nVariantes !== $viejo['variantes']) {
             $vOld = $viejo['variantes'] ?: 'N/A';
             $vNew = $nVariantes ?: 'N/A';
-            $cambios[] = "Variante: <b>$vOld</b> ➝ <b>$vNew</b>";
+            $cambios[] = "Variante: <b>$vOld</b> &rarr; <b>$vNew</b>";
         }
 
         if ($nDesc !== $viejo['descripcion']) {
@@ -127,33 +137,37 @@ if ($metodo === 'POST') {
         if ($nEstado !== $viejo['estado']) {
             $eOld = ucfirst($viejo['estado']);
             $eNew = ucfirst($nEstado);
-            $cambios[] = "Estado: <b>$eOld</b> ➝ <b>$eNew</b>";
+            $cambios[] = "Estado: <b>$eOld</b> &rarr; <b>$eNew</b>";
         }
 
 
         if ($nStock != $viejo['stock']) {
             $tipoMov = $nStock > $viejo['stock'] ? 'entrada' : 'salida'; 
-            $cambios[] = "Stock: <b>{$viejo['stock']}</b> ➝ <b>$nStock</b>";
+            $cambios[] = "Stock: <b>{$viejo['stock']}</b> &rarr; <b>$nStock</b>";
         }
 
         if ($nPrecio != $viejo['precio_venta']) {
             $tipoMov = 'precio'; // Color naranja
-            $cambios[] = "Precio: $<b>{$viejo['precio_venta']}</b> ➝ $<b>$nPrecio</b>";
+            $cambios[] = "Precio: $<b>{$viejo['precio_venta']}</b> &rarr; $<b>$nPrecio</b>";
         }
 
         if (!empty($cambios)) {
             $detalleFinal = implode('<br>', $cambios); 
             
-            $sqlMov = "INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, ?, ?, ?, NOW())";
-            $pdo->prepare($sqlMov)->execute([$sku, $nTitulo, $tipoMov, $detalleFinal, $user]);
-
+            // ACTUALIZAR PRODUCTO PRIMERO
             $sqlUpd = "UPDATE productos SET titulo=?, precio_venta=?, stock=?, variantes=?, descripcion=?, categoria=?, estado=? WHERE sku=?";
             $pdo->prepare($sqlUpd)->execute([$nTitulo, $nPrecio, $nStock, $nVariantes, $nDesc, $nCat, $nEstado, $sku]);
+            
+            // LUEGO REGISTRAR EN BITÁCORA
+            $sqlMov = "INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, ?, ?, ?, ?)";
+            $pdo->prepare($sqlMov)->execute([$sku, $nTitulo, $tipoMov, $detalleFinal, $user, $fechaActual]);
             
             // Invalidar caché automáticamente
             $cacheInvalidator->invalidarProducto($sku);
             
-            // Sincronizar con Firebase
+            $pdo->commit();
+            
+            // Sincronizar con Firebase (fuera de la transacción)
             if ($firestore) {
                 try {
                     $docRef = $firestore->collection('productos')->document($sku);
@@ -179,9 +193,14 @@ if ($metodo === 'POST') {
             
             echo json_encode(['mensaje'=>'Cambios registrados en bitácora']);
         } else {
+            $pdo->commit();
             echo json_encode(['mensaje'=>'No detecté cambios para guardar']);
         }
 
-    } catch (Exception $e) { http_response_code(500); echo json_encode(['error'=>$e->getMessage()]); }
+    } catch (Exception $e) { 
+        $pdo->rollBack();
+        http_response_code(500); 
+        echo json_encode(['error'=>$e->getMessage()]); 
+    }
 }
 ?>

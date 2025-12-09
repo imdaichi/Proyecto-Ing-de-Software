@@ -2,6 +2,58 @@
 
 Sistema web de gestión de inventario, ventas y reportes con sincronización a Firebase.
 
+## 📚 Documentación Técnica Consolidada
+
+### Sistema de Caché
+El sistema implementa un **caché basado en archivos JSON** que mejora la performance 2.5-3x:
+- **Dashboard KPIs**: 108ms → 42ms (caché de 5 minutos)
+- **Notificaciones**: 145ms → 52ms (caché de 5 minutos)
+- **Rankings**: 235ms → 78ms (caché de 5 minutos)
+- **Productos individuales**: ~50ms → ~15ms (caché de 10 minutos)
+- **Invalidación automática**: Al editar/crear/eliminar, el caché se limpia automáticamente
+- **Archivos**: `Backend/Cache.php`, `Backend/CacheInvalidator.php`
+- **Ubicación**: `/tmp/cimehijo_cache/`
+
+### Sincronización Firebase
+Sistema de sincronización bidireccional con Firebase:
+- Detecta cambios en productos desde Firebase (últimos 2 días)
+- Actualiza MySQL con datos de Firebase automáticamente
+- Modal con resultados paginados (7 items por página)
+- Visualización detallada de cambios campo por campo
+- Transacciones atómicas para seguridad de datos
+- **Archivos**: `Backend/SincronizarFirebase.php`
+
+### Sistema de Notificaciones Multi-Alerta
+Monitoreo inteligente de inventario con 3 tipos de alertas configurables:
+- **🔴 Stock Bajo** (Prioridad ALTA): Productos con menos de X unidades
+- **🟡 Sin Ventas** (Prioridad MEDIA): Productos sin movimiento en X días
+- **🔵 Período de Gracia** (Prioridad BAJA): Productos nuevos en período de evaluación
+- **Configuración dinámica**: Ajustable desde el dashboard sin modificar código
+- **Archivos**: `Backend/Notificaciones.php`, `Backend/ConfigNotificaciones.php`
+
+### Recuperación de Contraseña
+Sistema de recuperación basado en tokens de seguridad:
+- Tokens aleatorios de 32 caracteres (SHA-256)
+- Expiración de 1 hora
+- Uso único (token se marca como usado después de cambiar contraseña)
+- Links clickeables generados en pantalla (entorno local sin email)
+- **Archivos**: `Backend/GenerarTokenRecuperacion.php`, `Backend/ValidarTokenRecuperacion.php`, `Backend/CambiarPasswordRecuperacion.php`
+- **Frontend**: `recuperar-password.html`, `reset-password.html`
+
+### Zona Horaria
+Sistema configurado para **America/Santiago (UTC-3)**:
+- Docker container con `TZ=America/Santiago`
+- PHP usando `date_default_timezone_set('America/Santiago')`
+- Timestamps en ventas y productos respetan timezone local
+- **Archivos**: `docker-compose.yml`, `Backend/Ventas.php`, `Backend/Productos.php`
+
+### Configuración de Archivos Sensibles
+Archivos requeridos que NO están en el repositorio por seguridad:
+- `Backend/Config/db.php` - Conexión a base de datos
+- `Backend/Config/email.php` - API Key de SendGrid (opcional)
+- `Backend/firebase-credentials.json` - Credenciales de Firebase
+- ⚠️ Copiar desde `.example` y configurar antes del primer uso
+
 ## 🚀 Requisitos previos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado

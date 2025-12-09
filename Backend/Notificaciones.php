@@ -3,8 +3,27 @@ require_once __DIR__ . '/Cache.php';
 
 if (!isset($pdo)) exit;
 
+// Inicializar el sistema de caché
+$cache = new Cache();
+
 if ($metodo === 'GET') {
     try {
+        // Obtener configuración de notificaciones
+        $stmtConfig = $pdo->query("SELECT dias_stock_bajo, dias_sin_ventas, dias_periodo_gracia FROM config_notificaciones WHERE id = 1");
+        $config = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$config) {
+            $config = [
+                'dias_stock_bajo' => 3,
+                'dias_sin_ventas' => 80,
+                'dias_periodo_gracia' => 21
+            ];
+        }
+        
+        $diasStockBajo = (int)$config['dias_stock_bajo'];
+        $diasSinVentas = (int)$config['dias_sin_ventas'];
+        $diasPeriodoGracia = (int)$config['dias_periodo_gracia'];
+        
         // Intentar obtener del caché (5 minutos)
         $alertas = $cache->get('notificaciones_productos');
         
@@ -20,8 +39,8 @@ if ($metodo === 'GET') {
             foreach ($productos as $prod) {
                 $sku = $prod['sku'];
                 
-                // ALERTA 1: STOCK BAJO (menos de 3 unidades) - PRIORIDAD ALTA
-                if ($prod['stock'] < 3) {
+                // ALERTA 1: STOCK BAJO (menos de X unidades, según configuración) - PRIORIDAD ALTA
+                if ($prod['stock'] < $diasStockBajo) {
                     $alertas[] = [
                         'sku' => $prod['sku'],
                         'titulo' => $prod['titulo'],
@@ -89,16 +108,16 @@ if ($metodo === 'GET') {
                 
                 // Si el cambio de precio es más reciente que la última venta
                 if ($ultimaVenta && strtotime($ultimoPrecio['fecha']) > strtotime($ultimaVenta['fecha'])) {
-                    // Dar período de gracia de 21 días (3 semanas) desde el cambio de precio
-                    if ($diasDesdePrecio < 21) {
+                    // Dar período de gracia según configuración
+                    if ($diasDesdePrecio < $diasPeriodoGracia) {
                         $enPeriodoGracia = true;
                     } else {
-                        // Ya pasaron 21 días desde el cambio de precio, contar desde ahí
+                        // Ya pasó el período de gracia desde el cambio de precio, contar desde ahí
                         $diasSinVenta = $diasDesdePrecio;
                     }
                 } elseif (!$ultimaVenta) {
                     // Si nunca se ha vendido pero cambió el precio recientemente
-                    if ($diasDesdePrecio < 21) {
+                    if ($diasDesdePrecio < $diasPeriodoGracia) {
                         $enPeriodoGracia = true;
                     } else {
                         // Usar el mayor entre días desde precio y días sin venta
@@ -111,20 +130,20 @@ if ($metodo === 'GET') {
             if ($enPeriodoGracia) continue;
             
             // Mostrar alerta si:
-            // 1. Lleva más de 80 días sin venta, O
-            // 2. Cambió el precio hace más de 21 días y no ha vendido desde entonces
+            // 1. Lleva más de X días sin venta (según configuración), O
+            // 2. Cambió el precio hace más de X días y no ha vendido desde entonces
             $alertarPorCambioPrecio = false;
             if ($ultimoPrecio && strtotime($ultimoPrecio['fecha']) > strtotime($ultimaVenta['fecha'] ?? '1970-01-01')) {
                 $sqlDiasPrecio2 = "SELECT DATEDIFF(NOW(), ?) as dias";
                 $stmtDiasPrecio2 = $pdo->prepare($sqlDiasPrecio2);
                 $stmtDiasPrecio2->execute([$ultimoPrecio['fecha']]);
                 $diasDesdeCambioPrecio = (int)$stmtDiasPrecio2->fetch(PDO::FETCH_ASSOC)['dias'];
-                if ($diasDesdeCambioPrecio > 21) {
+                if ($diasDesdeCambioPrecio > $diasPeriodoGracia) {
                     $alertarPorCambioPrecio = true;
                 }
             }
             
-            if ($diasSinVenta > 80 || $alertarPorCambioPrecio) {
+            if ($diasSinVenta > $diasSinVentas || $alertarPorCambioPrecio) {
                 $alertas[] = [
                     'sku' => $prod['sku'],
                     'titulo' => $prod['titulo'],

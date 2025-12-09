@@ -1,6 +1,11 @@
 <?php
 // Backend/CierreCaja.php
+require_once __DIR__ . '/Cache.php';
+
 if (!isset($pdo)) exit;
+
+// Inicializar el sistema de caché
+$cache = new Cache();
 
 if ($metodo === 'GET') {
     try {

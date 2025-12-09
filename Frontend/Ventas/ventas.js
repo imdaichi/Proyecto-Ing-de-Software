@@ -236,7 +236,7 @@ function iniciarVentas(usuario) {
                 mostrarInputModal('Ingrese la cantidad a agregar:', 'Cantidad', (valor) => {
                     const n = parseInt(valor, 10);
                     if (!isNaN(n) && n > 0) {
-                        ventaActual[ventaActual.length - 1].cantidad *= n;
+                        ventaActual[ventaActual.length - 1].cantidad += n;
                         actualizar();
                     }
                 });

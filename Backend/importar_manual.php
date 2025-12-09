@@ -64,18 +64,18 @@ try {
             $tipoMov = 'edicion';
 
             if ($viejo['titulo'] != $titulo) {
-                $cambios[] = "Título: <b>{$viejo['titulo']}</b> ➝ <b>$titulo</b>";
+                $cambios[] = "Título: <b>{$viejo['titulo']}</b> &rarr; <b>$titulo</b>";
             }
             if ($viejo['variantes'] != $variantes) {
                 $vOld = $viejo['variantes'] ?: '-';
-                $cambios[] = "Var: <b>$vOld</b> ➝ <b>$variantes</b>";
+                $cambios[] = "Var: <b>$vOld</b> &rarr; <b>$variantes</b>";
             }
             if ($viejo['stock'] != $stockNew) {
                 $tipoMov = $stockNew > $viejo['stock'] ? 'entrada' : 'salida';
-                $cambios[] = "Stock: <b>{$viejo['stock']}</b> ➝ <b>$stockNew</b>";
+                $cambios[] = "Stock: <b>{$viejo['stock']}</b> &rarr; <b>$stockNew</b>";
             }
             if ($viejo['precio_venta'] != $precioNew) {
-                $cambios[] = "Precio: <b>{$viejo['precio_venta']}</b> ➝ <b>$precioNew</b>";
+                $cambios[] = "Precio: <b>{$viejo['precio_venta']}</b> &rarr; <b>$precioNew</b>";
             }
             if ($viejo['descripcion'] != $desc) {
                 $cambios[] = "📝 Descripción actualizada";
@@ -89,7 +89,7 @@ try {
             
         } else {
             $stmtInsert->execute([$sku, $titulo, $variantes, $stockNew, $precioNew, $desc, $estado, $garantia, $categoria]);
-            $det = "Carga Inicial<br>Stock: 0 ➝ <b>$stockNew</b><br>Var: $variantes";
+            $det = "Carga Inicial<br>Stock: 0 &rarr; <b>$stockNew</b><br>Var: $variantes";
             $stmtMov->execute([$sku, $titulo, 'entrada', $det, 'Auto-Sync', 'CSV']);
         }
         $count++;

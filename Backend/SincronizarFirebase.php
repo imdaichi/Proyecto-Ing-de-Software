@@ -68,12 +68,12 @@ if ($metodo === 'POST') {
                 $sku = $doc->id();
                 $data = $doc->data();
                 
-                // Convertir timestamp de Firebase a datetime
+                // Convertir timestamp de Firebase a datetime (puede no existir si fue editado manualmente)
                 $lastModified = isset($data['lastModified']) ? $data['lastModified']->toDateTime()->format('Y-m-d H:i:s') : null;
-                
-                // CRÍTICO: Solo incluir productos modificados DESPUÉS de última sincronización
-                // Si no tiene lastModified, lo saltamos (datos viejos sin timestamp)
-                if (!$lastModified || strtotime($lastModified) <= $ultimaSinc) {
+
+                // Si no existe lastModified, **no** lo excluimos: permitimos detectar cambios manuales.
+                // Solo saltamos si existe lastModified y es anterior o igual a la última sincronización.
+                if ($lastModified && strtotime($lastModified) <= $ultimaSinc) {
                     continue;
                 }
                 

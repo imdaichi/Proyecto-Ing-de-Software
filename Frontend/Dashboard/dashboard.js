@@ -112,6 +112,8 @@ window.verSeccion = function(id) {
     if (bellBtn) {
         bellBtn.style.background = 'none';
         bellBtn.style.color = (id === 'notif') ? '#122028' : '#29542e';
+        // Ocultar el botón cuando estamos en la sección de notificaciones
+        bellBtn.style.display = (id === 'notif') ? 'none' : 'inline-block';
     }
     tabs.forEach(t => {
         const sec = document.getElementById('sec-' + t);
@@ -273,7 +275,7 @@ cargarBadgeNotificaciones();
 let movimientosData = [];
 let movimientosDataFiltrados = [];
 let movimientosPaginaActual = 1;
-const MOVS_POR_PAGINA = 10;
+const MOVS_POR_PAGINA = 12;
 let skuFiltroActual = null;
 let ordenActual = { columna: 'fecha', direccion: 'desc' };
 
@@ -426,12 +428,20 @@ async function cargarMovimientos(skuFiltro = null, page = 1) {
 function renderMovimientosPage() {
     const tbody = document.getElementById('tabla-mov-body');
     const dataRender = movimientosDataFiltrados.length > 0 ? movimientosDataFiltrados : movimientosData;
-    const total = dataRender.length;
+    
+    // Crear una copia y ordenar por fecha descendente (más reciente primero)
+    let dataSorted = [...dataRender].sort((a, b) => {
+        const fechaA = new Date(a.fecha).getTime();
+        const fechaB = new Date(b.fecha).getTime();
+        return fechaB - fechaA; // Descendente (más reciente primero)
+    });
+    
+    const total = dataSorted.length;
     const totalPages = Math.ceil(total / MOVS_POR_PAGINA) || 1;
     if (movimientosPaginaActual > totalPages) movimientosPaginaActual = totalPages;
     const start = (movimientosPaginaActual - 1) * MOVS_POR_PAGINA;
     const end = Math.min(start + MOVS_POR_PAGINA, total);
-    const pageItems = dataRender.slice(start, end);
+    const pageItems = dataSorted.slice(start, end);
 
     tbody.innerHTML = '';
     pageItems.forEach(m => {
@@ -467,11 +477,38 @@ function renderMovimientosPager(totalPages) {
     const pageInfo = document.getElementById('mov-page-info');
     const btnPrev = document.getElementById('mov-prev');
     const btnNext = document.getElementById('mov-next');
+
+    const renderPageChooser = (container, total) => {
+        if (!container) return;
+        const selId = `${container.id}-select`;
+        const options = Array.from({ length: total }, (_, i) => {
+            const n = i + 1;
+            return `<option value="${n}" ${n === movimientosPaginaActual ? 'selected' : ''}>${n}</option>`;
+        }).join('');
+
+        container.innerHTML = `
+            <label style="display:flex;align-items:center;gap:10px;line-height:1.2;font-size:14px;white-space:nowrap;">
+                <span style="font-weight:600;">Página</span>
+                <select id="${selId}" style="padding:4px 10px; font-size:14px; line-height:1.2; height:32px; min-width:70px;">${options}</select>
+                <span style="font-weight:600;">de ${total}</span>
+            </label>`;
+
+        const select = document.getElementById(selId);
+        const go = (val) => {
+            const n = Math.min(Math.max(1, parseInt(val, 10) || 1), total);
+            if (n !== movimientosPaginaActual) {
+                movimientosPaginaActual = n;
+                renderMovimientosPage();
+            }
+        };
+        if (select) select.onchange = () => go(select.value);
+    };
+
     if (paginador && pageInfo && btnPrev && btnNext) {
         if (totalPages <= 1) { paginador.style.display = 'none'; }
         else {
             paginador.style.display = 'flex';
-            pageInfo.textContent = `Página ${movimientosPaginaActual} de ${totalPages}`;
+            renderPageChooser(pageInfo, totalPages);
             btnPrev.disabled = movimientosPaginaActual <= 1;
             btnNext.disabled = movimientosPaginaActual >= totalPages;
             btnPrev.onclick = () => { if (movimientosPaginaActual > 1) { movimientosPaginaActual--; renderMovimientosPage(); } };
@@ -487,7 +524,7 @@ function renderMovimientosPager(totalPages) {
         if (totalPages <= 1) { paginadorTop.style.display = 'none'; }
         else {
             paginadorTop.style.display = 'flex';
-            pageInfoTop.textContent = `Página ${movimientosPaginaActual} de ${totalPages}`;
+            renderPageChooser(pageInfoTop, totalPages);
             btnPrevTop.disabled = movimientosPaginaActual <= 1;
             btnNextTop.disabled = movimientosPaginaActual >= totalPages;
             btnPrevTop.onclick = () => { if (movimientosPaginaActual > 1) { movimientosPaginaActual--; renderMovimientosPage(); } };
@@ -549,7 +586,7 @@ if (btnReporte) {
             // Guardar ventas para paginación y render inicial
             window.ventasData = Array.isArray(data.ventas) ? data.ventas : [];
             window.ventasPaginaActual = 1;
-            window.VENTAS_POR_PAGINA = 10;
+            window.VENTAS_POR_PAGINA = 12;
 
             renderReportePage();
 
@@ -604,11 +641,36 @@ function renderReportePager(totalPages) {
     const pageInfo = document.getElementById('rep-page-info');
     const btnPrev = document.getElementById('rep-prev');
     const btnNext = document.getElementById('rep-next');
+    const renderPageChooser = (container, total) => {
+        if (!container) return;
+        const selId = `${container.id}-select`;
+        const options = Array.from({ length: total }, (_, i) => {
+            const n = i + 1;
+            return `<option value="${n}" ${n === window.ventasPaginaActual ? 'selected' : ''}>${n}</option>`;
+        }).join('');
+
+        container.innerHTML = `
+            <label style="display:flex;align-items:center;gap:10px;line-height:1.2;font-size:14px;white-space:nowrap;">
+                <span style="font-weight:600;">Página</span>
+                <select id="${selId}" style="padding:4px 10px; font-size:14px; line-height:1.2; height:32px; min-width:70px;">${options}</select>
+                <span style="font-weight:600;">de ${total}</span>
+            </label>`;
+
+        const select = document.getElementById(selId);
+        const go = (val) => {
+            const n = Math.min(Math.max(1, parseInt(val, 10) || 1), total);
+            if (n !== window.ventasPaginaActual) {
+                window.ventasPaginaActual = n;
+                renderReportePage();
+            }
+        };
+        if (select) select.onchange = () => go(select.value);
+    };
     if (paginador && pageInfo && btnPrev && btnNext) {
         if (totalPages <= 1) { paginador.style.display = 'none'; }
         else {
             paginador.style.display = 'flex';
-            pageInfo.textContent = `Página ${window.ventasPaginaActual} de ${totalPages}`;
+            renderPageChooser(pageInfo, totalPages);
             btnPrev.disabled = window.ventasPaginaActual <= 1;
             btnNext.disabled = window.ventasPaginaActual >= totalPages;
             btnPrev.onclick = () => { if (window.ventasPaginaActual > 1) { window.ventasPaginaActual--; renderReportePage(); } };
@@ -623,7 +685,7 @@ function renderReportePager(totalPages) {
         if (totalPages <= 1) { paginadorTop.style.display = 'none'; }
         else {
             paginadorTop.style.display = 'flex';
-            pageInfoTop.textContent = `Página ${window.ventasPaginaActual} de ${totalPages}`;
+            renderPageChooser(pageInfoTop, totalPages);
             btnPrevTop.disabled = window.ventasPaginaActual <= 1;
             btnNextTop.disabled = window.ventasPaginaActual >= totalPages;
             btnPrevTop.onclick = () => { if (window.ventasPaginaActual > 1) { window.ventasPaginaActual--; renderReportePage(); } };
@@ -879,8 +941,11 @@ document.getElementById('btn-guardar-nuevo-prov')?.addEventListener('click', asy
 
 
 // ==========================================
-// 8. AUTO-SYNC CSV
+// 8. AUTO-SYNC CSV - DESHABILITADO
 // ==========================================
+// COMENTADO: Esta función creaba 149 registros en movimientos cada vez que se refrescaba la página
+// porque importaba TODOS los productos del CSV y registraba cada cambio en la bitácora
+/*
 (async function autoSincronizarCSV() {
     console.log("🔄 Iniciando sincronización automática...");
     try {
@@ -893,6 +958,7 @@ document.getElementById('btn-guardar-nuevo-prov')?.addEventListener('click', asy
         }
     } catch (e) { console.warn("⚠️ Sync:", e); }
 })();
+*/
 
 
 // ==========================================
@@ -1588,3 +1654,101 @@ class SincronizacionFirebase {
 
 // Inicializar sincronización al cargar el dashboard
 window.sincronizacionFirebase = new SincronizacionFirebase();
+
+// ====================================
+// CONFIGURACIÓN DE NOTIFICACIONES
+// ====================================
+
+window.abrirModalConfigNotif = async function() {
+    try {
+        const modal = document.getElementById('modal-config-notif');
+        const inputStockBajo = document.getElementById('input-dias-stock-bajo');
+        const inputSinVentas = document.getElementById('input-dias-sin-ventas');
+        const inputPeriodoGracia = document.getElementById('input-dias-periodo-gracia');
+
+        const res = await fetch(`${API_URL}/config-notificaciones`);
+        const data = await res.json();
+
+        if (data.config) {
+            inputStockBajo.value = data.config.dias_stock_bajo || 3;
+            inputSinVentas.value = data.config.dias_sin_ventas || 80;
+            inputPeriodoGracia.value = data.config.dias_periodo_gracia || 21;
+        } else {
+            // Valores por defecto si algo falla
+            inputStockBajo.value = 3;
+            inputSinVentas.value = 80;
+            inputPeriodoGracia.value = 21;
+        }
+
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error('Error al cargar configuración:', error);
+        // Cargar valores por defecto en caso de error
+        document.getElementById('input-dias-stock-bajo').value = 3;
+        document.getElementById('input-dias-sin-ventas').value = 80;
+        document.getElementById('input-dias-periodo-gracia').value = 21;
+        document.getElementById('modal-config-notif').style.display = 'flex';
+    }
+};
+
+window.cerrarModalConfigNotif = function() {
+    document.getElementById('modal-config-notif').style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btnConfigNotif = document.getElementById('btn-config-notif');
+    if (btnConfigNotif) {
+        btnConfigNotif.addEventListener('click', abrirModalConfigNotif);
+        btnConfigNotif.addEventListener('hover', function() {
+            this.style.transform = 'scale(1.1) rotate(20deg)';
+        });
+    }
+
+    const formConfigNotif = document.getElementById('form-config-notif');
+    if (formConfigNotif) {
+        formConfigNotif.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const payload = {
+                    dias_stock_bajo: parseInt(document.getElementById('input-dias-stock-bajo').value),
+                    dias_sin_ventas: parseInt(document.getElementById('input-dias-sin-ventas').value),
+                    dias_periodo_gracia: parseInt(document.getElementById('input-dias-periodo-gracia').value)
+                };
+
+                const res = await fetch(`${API_URL}/config-notificaciones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    mostrarToast('✅ Configuración guardada correctamente', 'success');
+                    cerrarModalConfigNotif();
+                    // Recargar notificaciones
+                    setTimeout(() => {
+                        if (cargadoNotif) {
+                            cargadoNotif = false;
+                            cargarNotificaciones();
+                        }
+                    }, 500);
+                } else {
+                    mostrarToast('❌ ' + (data.error || 'Error al guardar'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarToast('❌ Error al guardar la configuración', 'error');
+            }
+        });
+    }
+
+    // Cerrar modal al hacer click afuera
+    const modal = document.getElementById('modal-config-notif');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) cerrarModalConfigNotif();
+        });
+    }
+});

@@ -5,23 +5,23 @@ require_once __DIR__ . '/CacheInvalidator.php';
 
 if (!isset($pdo)) exit;
 
-// Inicializar Firebase (solo una vez)
-require_once __DIR__ . '/vendor/autoload.php';
-
-use Kreait\Firebase\Factory;
-
+// Inicializar Firebase
 $firebase = null;
 $firestore = null;
 
-try {
-    $credentialsPath = __DIR__ . '/firebase-credentials.json';
-    if (file_exists($credentialsPath)) {
-        $firebase = (new Factory)->withServiceAccount($credentialsPath);
-        $firestore = $firebase->createFirestore()->database();
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    
+    try {
+        $credentialsPath = __DIR__ . '/firebase-credentials.json';
+        if (file_exists($credentialsPath)) {
+            $firebase = (new \Kreait\Firebase\Factory)->withServiceAccount($credentialsPath);
+            $firestore = $firebase->createFirestore()->database();
+        }
+    } catch (Exception $e) {
+        error_log("Firebase init error: " . $e->getMessage());
+        $firestore = null;
     }
-} catch (Exception $e) {
-    error_log("Firebase init error: " . $e->getMessage());
-    $firestore = null;
 }
 
 if ($metodo === 'POST') {
@@ -51,9 +51,13 @@ if ($metodo === 'POST') {
         $metodoPago = $datos['metodo_pago'] ?? 'efectivo';
         $emailUser = $datos['email_usuario'] ?? 'cajero';
         $descuento = $datos['descuento_aplicado'] ?? 0;
+        // Usar date() que respeta date_default_timezone_set(), no microtime() que es UTC siempre
+        $ahora = microtime(true);
+        $microsegundos = sprintf("%06d", ($ahora - floor($ahora)) * 1000000);
+        $fechaActual = date('Y-m-d H:i:s') . '.' . $microsegundos;
 
-        $stmt = $pdo->prepare("INSERT INTO ventas (total, metodo_pago, email_usuario, descuento_aplicado, items, fecha) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$total, $metodoPago, $emailUser, $descuento, json_encode($items)]);
+        $stmt = $pdo->prepare("INSERT INTO ventas (total, metodo_pago, email_usuario, descuento_aplicado, items, fecha) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$total, $metodoPago, $emailUser, $descuento, json_encode($items), $fechaActual]);
         $idVenta = $pdo->lastInsertId();
 
         $metodoPagoTexto = match($metodoPago) {
@@ -65,7 +69,7 @@ if ($metodo === 'POST') {
         };
 
         $stmtProd = $pdo->prepare("UPDATE productos SET stock = stock - ? WHERE sku = ?");
-        $stmtMov  = $pdo->prepare("INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, 'venta', ?, ?, NOW())");
+        $stmtMov  = $pdo->prepare("INSERT INTO movimientos (sku, titulo, tipo, detalle, usuario, fecha) VALUES (?, ?, ?, ?, ?, ?)");
         $stmtGet  = $pdo->prepare("SELECT stock, titulo, estado FROM productos WHERE sku = ? FOR UPDATE");
 
         foreach ($items as $item) {
@@ -93,8 +97,8 @@ if ($metodo === 'POST') {
             $tituloFinal = $titulo ?? ($row['titulo'] ?? $sku);
 
 
-            $detalle = "Venta #$idVenta (x$cant) - $metodoPagoTexto | Stock: $stockAntes → $stockDespues";
-            $stmtMov->execute([$sku, $tituloFinal, $detalle, $emailUser]);
+            $detalle = "Venta #$idVenta (x$cant) - $metodoPagoTexto | Stock: $stockAntes &rarr; $stockDespues";
+            $stmtMov->execute([$sku, $tituloFinal, 'venta', $detalle, $emailUser, $fechaActual]);
 
             // Actualizar stock en Firebase
             if ($firestore) {
@@ -118,6 +122,38 @@ if ($metodo === 'POST') {
         
         // Invalidar cachés relacionados con ventas
         $cacheInvalidator->invalidarVenta();
+
+        // Archivado automático cada 30 días desde la primera venta
+        try {
+            require_once __DIR__ . '/ArchivarMovimientosService.php';
+
+            // Leer última fecha de archivado (o primera venta)
+            $stmtCfg = $pdo->prepare("SELECT valor FROM config WHERE clave = 'ultima_archiva_movimientos'");
+            $stmtCfg->execute();
+            $rowCfg = $stmtCfg->fetch(PDO::FETCH_ASSOC);
+
+            $ahora = (new DateTime())->format('Y-m-d H:i:s');
+
+            if (!$rowCfg) {
+                // Primera venta: registrar fecha base, no archivar aún
+                $pdo->prepare("INSERT INTO config (clave, valor) VALUES ('ultima_archiva_movimientos', ?)")
+                    ->execute([$ahora]);
+            } else {
+                $ultima = $rowCfg['valor'];
+                $diff = (new DateTime($ultima))->diff(new DateTime($ahora))->days;
+                if ($diff >= 30) {
+                    $resArch = archivarMovimientosService($pdo, 30);
+                    // Actualizar timestamp de última ejecución solo si no falló
+                    $pdo->prepare("UPDATE config SET valor=? WHERE clave='ultima_archiva_movimientos'")
+                        ->execute([$ahora]);
+                    if (isset($resArch['eliminados'])) {
+                        error_log("Archivado auto: " . $resArch['eliminados'] . " registros, archivo: " . ($resArch['archivo'] ?? 'n/a'));
+                    }
+                }
+            }
+        } catch (Exception $archErr) {
+            error_log('Error archivado auto: ' . $archErr->getMessage());
+        }
         
         echo json_encode(['mensaje' => 'Venta registrada', 'id_venta' => $idVenta]);
 

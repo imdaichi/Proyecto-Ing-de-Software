@@ -4,6 +4,9 @@
 
 -- 1. LIMPIEZA TOTAL (Empezar de cero)
 SET NAMES 'utf8mb4';
+SET collation_connection = 'utf8mb4_unicode_ci';
+SET character_set_client = 'utf8mb4';
+SET character_set_results = 'utf8mb4';
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS movimientos;
 DROP TABLE IF EXISTS ventas;
@@ -25,7 +28,7 @@ CREATE TABLE usuarios (
     password VARCHAR(255),
     rol VARCHAR(20) DEFAULT 'vendedor',
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- TABLA: PROVEEDORES
 CREATE TABLE proveedores (
@@ -35,7 +38,7 @@ CREATE TABLE proveedores (
     telefono VARCHAR(20),
     email VARCHAR(100),
     categoria VARCHAR(50)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- TABLA: PRODUCTOS (Adaptada a las 9 columnas de tu CSV)
 CREATE TABLE productos (
@@ -49,7 +52,7 @@ CREATE TABLE productos (
     estado VARCHAR(50) DEFAULT 'activo',
     tipo_garantia VARCHAR(100),             -- Nueva columna
     categoria VARCHAR(100)                  -- Nueva columna
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- TABLA: VENTAS (Items en JSON)
 CREATE TABLE ventas (
@@ -60,7 +63,7 @@ CREATE TABLE ventas (
     email_usuario VARCHAR(100),
     descuento_aplicado TINYINT(1) DEFAULT 0,
     items JSON NOT NULL 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- TABLA: MOVIMIENTOS (Bitácora de Auditoría)
 CREATE TABLE movimientos (
@@ -72,7 +75,7 @@ CREATE TABLE movimientos (
     usuario VARCHAR(100),
     proveedor VARCHAR(100),
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- ==========================================================
@@ -172,3 +175,67 @@ SELECT
     email_usuario,
     fecha
 FROM ventas;
+
+
+-- ==========================================================
+-- 8. TABLA DE CONFIGURACIÓN DE NOTIFICACIONES
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS config_notificaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dias_stock_bajo INT NOT NULL DEFAULT 3,
+    dias_sin_ventas INT NOT NULL DEFAULT 80,
+    dias_periodo_gracia INT NOT NULL DEFAULT 21,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insertar valores por defecto
+INSERT INTO config_notificaciones (id, dias_stock_bajo, dias_sin_ventas, dias_periodo_gracia)
+VALUES (1, 3, 80, 21)
+ON DUPLICATE KEY UPDATE id=id;
+
+
+-- ==========================================================
+-- 9. TABLA DE TOKENS DE RECUPERACIÓN DE CONTRASEÑA
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_expiracion TIMESTAMP NOT NULL,
+    usado BOOLEAN DEFAULT FALSE,
+    INDEX idx_token (token),
+    INDEX idx_email (email),
+    FOREIGN KEY (email) REFERENCES usuarios(email) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ==========================================================
+-- 10. TABLA CONFIG GENERAL (CLAVE/VALOR)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    clave VARCHAR(100) NOT NULL UNIQUE,
+    valor VARCHAR(255) NULL,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO config (clave, valor)
+VALUES 
+    ('ultima_sincronizacion_firebase', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+    ('ultima_archiva_movimientos', NULL)
+ON DUPLICATE KEY UPDATE clave=clave;
+
+
+-- ==========================================================
+-- 11. TABLA DE CIERRES DE CAJA
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS cierres_caja (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    fecha_cierre DATETIME NOT NULL,
+    total_ventas INT DEFAULT 0,
+    monto_total DECIMAL(10,2) DEFAULT 0,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

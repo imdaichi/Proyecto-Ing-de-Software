@@ -15,11 +15,11 @@ if ($metodo === 'GET') {
         $sku = $_GET['sku'] ?? null;
 
         if ($sku) {
-
             $stmt = $pdo->prepare("SELECT * FROM movimientos WHERE sku = ? ORDER BY fecha DESC");
             $stmt->execute([$sku]);
         } else {
-            $stmt = $pdo->query("SELECT * FROM movimientos ORDER BY fecha DESC LIMIT 50");
+            // Limitar a 800 para evitar carga masiva en frontend; el paginador ya muestra 10 por página
+            $stmt = $pdo->query("SELECT * FROM movimientos ORDER BY fecha DESC LIMIT 800");
         }
 
         $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
