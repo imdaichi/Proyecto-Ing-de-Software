@@ -1525,10 +1525,13 @@ class SincronizacionFirebase {
                 this.paginaActual = 1;
                 
                 if (data.total_cambios > 0) {
-                    // Hay cambios: mostrar modal con detalles
+                    // Hay cambios: exportar a XLSX con XLSX.js
+                    this.exportarCambiosXLSXJS(data.cambios);
+                    
+                    // Mostrar modal con detalles
                     this.mostrarModal();
                     this.renderizarPagina();
-                    mostrarExito('Sincronización completada', `Se procesaron ${data.total_cambios} cambios`);
+                    mostrarExito('Sincronización completada', `Se procesaron ${data.total_cambios} cambios\nArchivo descargado`);
                 } else {
                     // No hay cambios: solo mostrar toast informativo
                     mostrarToast(data.mensaje || 'Base de datos ya está actualizada', 'info');
@@ -1634,6 +1637,47 @@ class SincronizacionFirebase {
     truncarTexto(texto, maxLength) {
         if (typeof texto !== 'string') return String(texto);
         return texto.length > maxLength ? texto.substring(0, maxLength) + '...' : texto;
+    }
+
+    exportarCambiosXLSXJS(cambios) {
+        // Convertir cambios a formato de filas
+        const rows = [];
+        
+        cambios.forEach(cambio => {
+            const sku = cambio.sku || '';
+            const tipo = cambio.tipo || '';
+            
+            if (cambio.cambios && typeof cambio.cambios === 'object') {
+                Object.entries(cambio.cambios).forEach(([campo, valores]) => {
+                    rows.push({
+                        'SKU': sku,
+                        'Tipo': tipo,
+                        'Campo': campo,
+                        'Anterior': valores.anterior || '',
+                        'Nuevo': valores.nuevo || '',
+                        'Fecha': new Date().toLocaleString()
+                    });
+                });
+            } else {
+                rows.push({
+                    'SKU': sku,
+                    'Tipo': tipo,
+                    'Campo': 'Creación',
+                    'Anterior': '',
+                    'Nuevo': 'Nuevo',
+                    'Fecha': new Date().toLocaleString()
+                });
+            }
+        });
+
+        // Generar XLSX con XLSX.js
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{wch:20},{wch:15},{wch:15},{wch:20},{wch:20},{wch:20}];
+        XLSX.utils.book_append_sheet(wb, ws, "Cambios");
+
+        // Descargar
+        XLSX.writeFile(wb, `Cambios_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
     paginaAnterior() {
