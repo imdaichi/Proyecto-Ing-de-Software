@@ -83,8 +83,8 @@ CREATE TABLE movimientos (
 -- ==========================================================
 
 INSERT INTO usuarios (nombre, email, password, rol) VALUES
-('Administrador', 'admin@test.com', '123456', 'admin'),
-('Vendedor', 'vendedor@test.com', '123456', 'vendedor');
+('Administrador', 'admin@cimehijo.cl', '123456', 'admin'),
+('Vendedor', 'vendedor@cimehijo.cl', '123456', 'vendedor');
 
 INSERT INTO proveedores (nombre, contacto, telefono, email, categoria) VALUES
 ('Comercial CIM', 'Contacto Proveedor', '+56912345678', 'contacto@cim.cl', 'Ropa y Hogar'),
