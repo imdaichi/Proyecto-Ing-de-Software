@@ -5,14 +5,13 @@ ob_start();
 require_once __DIR__ . '/Config/db.php';
 require_once __DIR__ . '/Cache.php';
 require_once __DIR__ . '/CacheInvalidator.php';
+require_once __DIR__ . '/SincronizarFirebaseAsync.php';
 
-// Cargar Firebase solo si existe vendor/autoload.php
+// Inicialización de Firebase (solo si no es GET para evitar latencia al escanear)
 $firebase = null;
 $firestore = null;
-
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+if ($metodo !== 'GET' && file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
-    
     try {
         $credentialsPath = __DIR__ . '/firebase-credentials.json';
         if (file_exists($credentialsPath)) {
@@ -188,6 +187,28 @@ if ($metodo === 'POST') {
                     }
                 } catch (Exception $fbError) {
                     error_log("Firebase update error for SKU $sku: " . $fbError->getMessage());
+                }
+            }
+            // Sincronizar con Firebase en background (asíncrono, sin bloquear)
+            if ($firestore) {
+                try {
+                    $syncAsync = new SincronizarFirebaseAsync($firestore);
+                    
+                    $updateData = [];
+                    if ($nTitulo !== $viejo['titulo']) $updateData[] = ['path' => 'Titulo', 'value' => $nTitulo];
+                    if ($nStock != $viejo['stock']) $updateData[] = ['path' => 'Stock', 'value' => $nStock];
+                    if ($nPrecio != $viejo['precio_venta']) $updateData[] = ['path' => 'Precio Venta', 'value' => (string)$nPrecio];
+                    if ($nEstado !== $viejo['estado']) $updateData[] = ['path' => 'Estado', 'value' => ucfirst($nEstado)];
+                    if ($nVariantes !== $viejo['variantes']) $updateData[] = ['path' => 'Variantes', 'value' => $nVariantes ?: ''];
+                    if ($nDesc !== $viejo['descripcion']) $updateData[] = ['path' => 'Descripcion', 'value' => $nDesc ?: ''];
+                    if ($nCat !== $viejo['categoria']) $updateData[] = ['path' => 'Categoria', 'value' => $nCat ?: ''];
+                    
+                    if (!empty($updateData)) {
+                        $syncAsync->agregarActualizacion($sku, $updateData);
+                        $syncAsync->procesarAsync();
+                    }
+                } catch (Exception $fbError) {
+                    error_log("Firebase async error for SKU $sku: " . $fbError->getMessage());
                 }
             }
             

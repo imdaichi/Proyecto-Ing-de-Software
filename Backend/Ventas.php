@@ -25,6 +25,83 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
 }
 
 if ($metodo === 'POST') {
+    // Verificación de stock en Firebase previa al cobro (llamada desde Frontend)
+    if (isset($datos['items']) && !isset($datos['total'])) {
+        try {
+            $items = $datos['items'];
+            $todosConStock = true;
+            $mensajeError = '';
+
+            foreach ($items as $item) {
+                $sku = $item['sku'] ?? null;
+                $cant = (int)($item['cantidad'] ?? 0);
+                if (!$sku || $cant <= 0) { continue; }
+
+                if ($firestore) {
+                    try {
+                        $docRef = $firestore->collection('productos')->document($sku);
+                        $snapshot = $docRef->snapshot();
+                        if ($snapshot->exists()) {
+                            $stockFirebase = (int)($snapshot->data()['Stock'] ?? 0);
+                            // Cancelar si stock es 0, o si no alcanza para la cantidad solicitada
+                            if ($stockFirebase <= 0 || $stockFirebase < $cant) {
+                                $todosConStock = false;
+                                $mensajeError = "SKU $sku: stock Firebase insuficiente (disp: $stockFirebase, solicitado: $cant)";
+                                break;
+                            }
+                        } else {
+                            // Si no existe en Firebase, usar stock de MySQL
+                            $stmt = $pdo->prepare("SELECT stock FROM productos WHERE sku = ?");
+                            $stmt->execute([$sku]);
+                            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $stockLocal = (int)($row['stock'] ?? 0);
+                            if (!$row || $stockLocal <= 0 || $stockLocal < $cant) {
+                                $todosConStock = false;
+                                $mensajeError = "SKU $sku: stock local insuficiente (disp: $stockLocal, solicitado: $cant)";
+                                break;
+                            }
+                        }
+                    } catch (Exception $fbError) {
+                        error_log("Firebase check error for SKU $sku: " . $fbError->getMessage());
+                        // Fallback a MySQL si Firebase falla
+                        $stmt = $pdo->prepare("SELECT stock FROM productos WHERE sku = ?");
+                        $stmt->execute([$sku]);
+                        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $stockLocal = (int)($row['stock'] ?? 0);
+                        if (!$row || $stockLocal <= 0 || $stockLocal < $cant) {
+                            $todosConStock = false;
+                            $mensajeError = "SKU $sku: stock local insuficiente (disp: $stockLocal, solicitado: $cant)";
+                            break;
+                        }
+                    }
+                } else {
+                    // Si no hay Firebase, se valida con MySQL
+                    $stmt = $pdo->prepare("SELECT stock FROM productos WHERE sku = ?");
+                    $stmt->execute([$sku]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $stockLocal = (int)($row['stock'] ?? 0);
+                    if (!$row || $stockLocal <= 0 || $stockLocal < $cant) {
+                        $todosConStock = false;
+                        $mensajeError = "SKU $sku: stock local insuficiente (disp: $stockLocal, solicitado: $cant)";
+                        break;
+                    }
+                }
+            }
+
+            if ($todosConStock) {
+                echo json_encode(['stock_disponible' => true]);
+            } else {
+                http_response_code(400);
+                echo json_encode(['stock_disponible' => false, 'error' => $mensajeError]);
+            }
+            exit;
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al verificar stock: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
     try {
         // Verificar si ya se hizo el cierre de caja del día
         $fechaHoy = date('Y-m-d');
@@ -78,6 +155,23 @@ if ($metodo === 'POST') {
             $titulo = $item['titulo'] ?? null; 
 
             if (!$sku || $cant <= 0) { continue; }
+
+            // Verificación previa en Firebase: cancelar si stock es 0 o insuficiente
+            if ($firestore) {
+                try {
+                    $docRef = $firestore->collection('productos')->document($sku);
+                    $snapshot = $docRef->snapshot();
+                    if ($snapshot->exists()) {
+                        $currentFb = (int)($snapshot->data()['Stock'] ?? 0);
+                        if ($currentFb <= 0 || $currentFb < $cant) {
+                            throw new Exception("SKU $sku: stock Firebase insuficiente (disp: $currentFb, solicitado: $cant)");
+                        }
+                    }
+                } catch (Exception $fbChkErr) {
+                    // Si Firebase falla aquí, no bloqueamos la venta: la validación de MySQL sigue aplicando
+                    // Para política más estricta, se podría: throw $fbChkErr;
+                }
+            }
 
 
             $stmtGet->execute([$sku]);

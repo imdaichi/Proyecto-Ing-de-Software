@@ -257,11 +257,37 @@ function iniciarVentas(usuario) {
     const totalACobrar = document.getElementById('total-a-cobrar');
     const botonesMetodoPago = document.querySelectorAll('.btn-metodo-pago');
 
-    document.getElementById('btn-cobrar').addEventListener('click', () => {
+    // Verificación de stock en Firebase previa al cobro
+    async function verificarStockFirebase() {
+        try {
+            const itemsMin = ventaActual.map(i => ({ sku: i.sku, cantidad: i.cantidad }));
+            const res = await fetch(`${API_URL}/ventas/verificar-stock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: itemsMin })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.stock_disponible) {
+                mostrarError(data.error || 'Stock insuficiente en Firebase');
+                return false;
+            }
+            return true;
+        } catch (e) {
+            // Si Firebase falla, permite continuar (se validará en el backend al vender)
+            console.warn('Error verificando Firebase antes de cobrar:', e.message);
+            return true;
+        }
+    }
+
+    document.getElementById('btn-cobrar').addEventListener('click', async () => {
         if (ventaActual.length === 0) {
             mostrarError("No hay productos en la venta");
             return;
         }
+
+        // Verificar stock en Firebase antes de mostrar el modal
+        const ok = await verificarStockFirebase();
+        if (!ok) return;
 
         const totalFinal = ventaActual.reduce((acc, i) => acc + (parseFloat(i.producto['Precio Venta'] || 0) * i.cantidad), 0);
         totalACobrar.innerText = `Total: ${formatearPeso(totalFinal)}`;
